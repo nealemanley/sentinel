@@ -30,17 +30,22 @@ No credit card required for any of these.
    - **Project URL** → looks like `https://xxxxxxxxxxxx.supabase.co`
    - **anon public key** → long JWT string
 
-### 2 — Enable Google OAuth (optional but recommended)
+### 2 — Enable GitHub OAuth (free, no billing required)
 
-1. Go to [console.cloud.google.com](https://console.cloud.google.com)
-2. Create a new project → **APIs & Services → Credentials → Create OAuth Client ID**
-3. Application type: **Web application**
-4. Authorised redirect URIs: `https://xxxxxxxxxxxx.supabase.co/auth/v1/callback`
-5. Copy the **Client ID** and **Client Secret**
-6. In Supabase → **Authentication → Providers → Google** → paste both values → Save
-7. In Supabase → **Authentication → URL Configuration**:
-   - Site URL: `https://YOUR-APP.netlify.app`
-   - Redirect URLs: add `https://YOUR-APP.netlify.app/app.html`
+GitHub OAuth is completely free — no credit card, no trial limits.
+
+1. Go to [github.com/settings/developers](https://github.com/settings/developers) → **OAuth Apps → New OAuth App**
+2. Fill in:
+   - **Application name**: SENTINEL
+   - **Homepage URL**: `https://YOUR-APP.netlify.app`
+   - **Authorization callback URL**: `https://xxxxxxxxxxxx.supabase.co/auth/v1/callback`
+3. Click **Register application**, then copy the **Client ID** and generate a **Client Secret**
+4. In Supabase → **Authentication → Providers → GitHub** → paste both values → Save
+5. In Supabase → **Authentication → URL Configuration**:
+   - **Site URL**: `https://YOUR-APP.netlify.app`
+   - **Redirect URLs**: add `https://YOUR-APP.netlify.app/app.html`
+
+> **Magic Link** (passwordless sign-in) works automatically with no setup — Supabase handles it using your project's built-in email service. Users just enter their email and get a one-click sign-in link.
 
 ### 3 — GitHub Repository
 
@@ -94,7 +99,7 @@ HTTPS is automatic via Let's Encrypt.
 
 ```
 sentinel/
-├── index.html           ← Auth page (sign in / sign up / Google OAuth)
+├── index.html           ← Auth page (email/password, GitHub OAuth, magic link)
 ├── app.html             ← Main scanner app (protected, requires login)
 ├── netlify.toml         ← Netlify redirects and security headers
 ├── supabase-schema.sql  ← Run once in Supabase SQL Editor

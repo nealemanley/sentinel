@@ -133,16 +133,33 @@ body::before {
   content: ''; flex: 1; height: 1px; background: var(--border);
 }
 
-.btn-google {
+.btn-oauth {
   width: 100%; background: rgba(255,252,242,.85);
   border: 1px solid var(--border); color: var(--text);
   font-family: var(--sans); font-weight: 600; font-size: 15px;
   letter-spacing: .05em; padding: 13px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 10px;
-  transition: border-color .2s, background .2s;
+  transition: border-color .2s, background .2s; margin-bottom: 8px;
 }
-.btn-google:hover { border-color: var(--accent); background: rgba(255,255,255,.7); }
-.btn-google svg { flex-shrink: 0; }
+.btn-oauth:hover { border-color: var(--accent); background: rgba(255,255,255,.7); }
+.btn-oauth svg { flex-shrink: 0; }
+.btn-magic {
+  width: 100%; background: transparent;
+  border: 1px dashed rgba(0,122,96,.35); color: var(--accent);
+  font-family: var(--mono); font-size: 12px; letter-spacing: .15em;
+  text-transform: uppercase; padding: 11px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: border-color .2s, background .2s; margin-top: 4px;
+}
+.btn-magic:hover { border-color: var(--accent); background: rgba(0,122,96,.05); }
+/* Magic link sent state */
+.magic-sent {
+  background: rgba(0,122,96,.07); border: 1px solid rgba(0,122,96,.25);
+  padding: 14px 16px; text-align: center; display: none;
+}
+.magic-sent.show { display: block; }
+.magic-sent-title { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: .15em; margin-bottom: 6px; }
+.magic-sent-sub { font-size: 12px; color: var(--muted); line-height: 1.5; }
 
 /* Error / success */
 .msg {
@@ -242,15 +259,20 @@ body::before {
         <div class="spinner"></div>
       </button>
       <div class="divider">OR</div>
-      <button class="btn-google" onclick="doGoogle()">
-        <svg width="18" height="18" viewBox="0 0 18 18">
-          <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
-          <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-          <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+      <button class="btn-oauth" onclick="doGitHub()">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+          <path d="M9 0C4.03 0 0 4.03 0 9c0 3.98 2.58 7.35 6.16 8.54.45.08.61-.2.61-.44v-1.54c-2.5.54-3.03-1.21-3.03-1.21-.41-1.04-1-1.32-1-1.32-.82-.56.06-.55.06-.55.9.06 1.38.93 1.38.93.8 1.37 2.1.97 2.61.74.08-.58.31-.97.57-1.19-1.99-.23-4.09-1-4.09-4.44 0-.98.35-1.78.93-2.41-.09-.23-.4-1.14.09-2.37 0 0 .76-.24 2.49.93A8.64 8.64 0 0 1 9 4.37c.77 0 1.54.1 2.27.3 1.72-1.17 2.48-.93 2.48-.93.49 1.23.18 2.14.09 2.37.58.63.93 1.43.93 2.41 0 3.45-2.1 4.21-4.1 4.43.32.28.61.82.61 1.66v2.46c0 .24.16.52.62.43A9.01 9.01 0 0 0 18 9C18 4.03 13.97 0 9 0z"/>
         </svg>
-        Continue with Google
+        Continue with GitHub
       </button>
+      <button class="btn-magic" onclick="showMagicLink('signin')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v2M7 11v2M1 7h2M11 7h2M3 3l1.4 1.4M9.6 9.6L11 11M3 11l1.4-1.4M9.6 4.4L11 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.3"/></svg>
+        Sign in with magic link (no password)
+      </button>
+      <div class="magic-sent" id="magic-sent-si">
+        <div class="magic-sent-title">✉ MAGIC LINK SENT</div>
+        <div class="magic-sent-sub">Check your email and click the link to sign in instantly — no password needed.</div>
+      </div>
     </div>
 
     <!-- SIGN UP FORM -->
@@ -288,17 +310,22 @@ body::before {
         <div class="spinner"></div>
       </button>
       <div class="divider">OR</div>
-      <button class="btn-google" onclick="doGoogle()">
-        <svg width="18" height="18" viewBox="0 0 18 18">
-          <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
-          <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-          <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+      <button class="btn-oauth" onclick="doGitHub()">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+          <path d="M9 0C4.03 0 0 4.03 0 9c0 3.98 2.58 7.35 6.16 8.54.45.08.61-.2.61-.44v-1.54c-2.5.54-3.03-1.21-3.03-1.21-.41-1.04-1-1.32-1-1.32-.82-.56.06-.55.06-.55.9.06 1.38.93 1.38.93.8 1.37 2.1.97 2.61.74.08-.58.31-.97.57-1.19-1.99-.23-4.09-1-4.09-4.44 0-.98.35-1.78.93-2.41-.09-.23-.4-1.14.09-2.37 0 0 .76-.24 2.49.93A8.64 8.64 0 0 1 9 4.37c.77 0 1.54.1 2.27.3 1.72-1.17 2.48-.93 2.48-.93.49 1.23.18 2.14.09 2.37.58.63.93 1.43.93 2.41 0 3.45-2.1 4.21-4.1 4.43.32.28.61.82.61 1.66v2.46c0 .24.16.52.62.43A9.01 9.01 0 0 0 18 9C18 4.03 13.97 0 9 0z"/>
         </svg>
-        Sign up with Google
+        Sign up with GitHub
       </button>
+      <button class="btn-magic" onclick="showMagicLink('signup')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v2M7 11v2M1 7h2M11 7h2M3 3l1.4 1.4M9.6 9.6L11 11M3 11l1.4-1.4M9.6 4.4L11 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.3"/></svg>
+        Sign up with magic link (no password)
+      </button>
+      <div class="magic-sent" id="magic-sent-su">
+        <div class="magic-sent-title">✉ MAGIC LINK SENT</div>
+        <div class="magic-sent-sub">Check your email — click the link to create your account and sign in instantly.</div>
+      </div>
       <p style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:12px;text-align:center;letter-spacing:.06em;line-height:1.6">
-        By signing in with Google you also agree to receive<br>marketing emails from Nexior-Gray.
+        By signing up with GitHub or magic link you also agree to receive<br>marketing emails from Nexior-Gray.
       </p>
     </div>
 
@@ -328,12 +355,12 @@ body::before {
 
   <div class="footer">
     Free to use · Powered by Nexior-Gray ·
-    <a href="mailto:support@nexior-gray.com">support@nexior-gray.com</a>
+    <a href="/cdn-cgi/l/email-protection#ff8c8a8f8f908d8bbf919a8796908dd2988d9e86d19c9092"><span class="__cf_email__" data-cfemail="7e0d0b0e0e110c0a3e101b0617110c53190c1f07501d1113">[email&#160;protected]</span></a>
   </div>
 
 </div><!-- /wrap -->
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ══════════════════════════════════════════════════════════
 // CONFIGURATION — replace these with your actual values
 // Get them from: Supabase Dashboard → Project Settings → API
@@ -353,10 +380,10 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   }
 })();
 
-// Listen for auth state changes (Google OAuth callback etc.)
+// Listen for auth state changes (GitHub OAuth / Magic Link callback etc.)
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_IN' && session) {
-    // For Google OAuth signups, store marketing consent (defaults true per T&C)
+    // For GitHub/Magic Link signups, store marketing consent (agreed to during signup)
     await ensureProfile(session.user, true);
     window.location.href = '/app.html';
   }
@@ -425,16 +452,64 @@ async function doSignUp() {
   document.getElementById('verify-screen').style.display = 'block';
 }
 
-// ── GOOGLE OAUTH ──────────────────────────────────────────
-async function doGoogle() {
+// ── GITHUB OAUTH (100% free — no billing required) ───────────────────
+async function doGitHub() {
   const { error } = await sb.auth.signInWithOAuth({
-    provider: 'google',
+    provider: 'github',
     options: {
-      redirectTo: window.location.origin + '/app.html',
-      queryParams: { access_type: 'offline', prompt: 'consent' }
+      redirectTo: window.location.origin + '/app.html'
     }
   });
   if (error) showMsg(error.message, 'error');
+}
+
+// ── MAGIC LINK (passwordless email) ──────────────────────────────────
+// Works for both sign-in and sign-up — Supabase creates the account
+// automatically on first use, storing marketing_consent = true.
+function showMagicLink(mode) {
+  // Grab email from whichever form is active
+  const emailEl = mode === 'signin'
+    ? document.getElementById('si-email')
+    : document.getElementById('su-email');
+  const sentEl = mode === 'signin'
+    ? document.getElementById('magic-sent-si')
+    : document.getElementById('magic-sent-su');
+
+  const email = emailEl.value.trim();
+  if (!email) {
+    showMsg('Enter your email address first, then click the magic link button.', 'error');
+    emailEl.focus();
+    return;
+  }
+
+  // For sign-up mode, still require consent checkbox
+  if (mode === 'signup') {
+    const consent = document.getElementById('consent-cb').checked;
+    if (!consent) {
+      showMsg('You must agree to the terms and marketing consent to create an account.', 'error');
+      document.getElementById('consent-label').style.outline = '2px solid var(--warn)';
+      return;
+    }
+    document.getElementById('consent-label').style.outline = '';
+  }
+
+  sendMagicLink(email, sentEl, mode);
+}
+
+async function sendMagicLink(email, sentEl, mode) {
+  clearMsg();
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: window.location.origin + '/app.html',
+      data: {
+        marketing_consent: true,
+        username: email.split('@')[0]
+      }
+    }
+  });
+  if (error) { showMsg(error.message, 'error'); return; }
+  sentEl.classList.add('show');
 }
 
 // ── RESET PASSWORD ────────────────────────────────────────
@@ -498,11 +573,4 @@ function checkPwStrength(v) {
 
 // Handle enter key
 document.addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  const active = document.getElementById('tab-signin').classList.contains('active');
-  if (active && document.getElementById('form-signin').style.display !== 'none') doSignIn();
-  else if (!active) doSignUp();
-});
-</script>
-</body>
-</html>
+  if (e.key !== 'Enter
