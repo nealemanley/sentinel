@@ -1192,27 +1192,12 @@ let flightOn=false,liveFlights=[]; // current overhead flights
 // ════════════════════════════════════════════════════════
 // SCREENS / AUTH
 // ════════════════════════════════════════════════════════
-function showAuth(){document.getElementById('scr-splash').classList.remove('active');document.getElementById('scr-auth').classList.add('active');}
-function showApp(){document.getElementById('scr-auth').classList.remove('active');document.getElementById('scr-app').classList.add('active');updateUserUI();updateCatStats();startClock();reqGPS();renderRecs();drawMap();}
-function toggleMode(){
-  isReg=!isReg;
-  document.getElementById('albl').textContent=isReg?'CREATE OPERATOR PROFILE':'OPERATOR LOGIN';
-  document.getElementById('aemailg').style.display=isReg?'block':'none';
-  document.getElementById('asubmit').textContent=isReg?'CREATE PROFILE':'AUTHENTICATE';
-  document.getElementById('atog').innerHTML=isReg?'Already registered? <a onclick="toggleMode()">Sign in</a>':'No account? <a onclick="toggleMode()">Create operator profile</a>';
-  document.getElementById('aerr').style.display='none';
-}
-function doAuth(){
-  const u=document.getElementById('auser').value.trim(),p=document.getElementById('apass').value;
-  const err=document.getElementById('aerr');
-  if(!u||!p){err.textContent='CALLSIGN AND PASSPHRASE REQUIRED';err.style.display='block';return}
-  if(p.length<4){err.textContent='PASSPHRASE MINIMUM 4 CHARACTERS';err.style.display='block';return}
-  if(isReg){user={username:u,since:new Date().toISOString(),recordings:[]};localStorage.setItem('sntnl_u',JSON.stringify(user));}
-  else{const s=localStorage.getItem('sntnl_u');if(!s){err.textContent='NO PROFILE — CREATE ACCOUNT FIRST';err.style.display='block';return}user=JSON.parse(s);if(user.username!==u){err.textContent='INVALID CALLSIGN OR PASSPHRASE';err.style.display='block';return}recordings=user.recordings||[];}
-  err.style.display='none';showApp();
-}
-function doSignout(){stopCam();user=null;document.getElementById('scr-app').classList.remove('active');document.getElementById('scr-auth').classList.add('active');document.getElementById('auser').value='';document.getElementById('apass').value='';toast('OPERATOR LOGGED OUT');}
-function updateUserUI(){if(!user)return;const u=user.username;document.getElementById('tuser').textContent=u.toUpperCase();document.getElementById('uav').textContent=u[0].toUpperCase();document.getElementById('unam').textContent=u;document.getElementById('usince').textContent=user.since?new Date(user.since).toLocaleDateString('en-GB',{year:'numeric',month:'short',day:'numeric'}):'—';}
+function showAuth(){ showSection('auth'); }
+function showApp(){ showSection('app'); }
+function toggleMode(){ switchTab(document.getElementById("tab-signup").classList.contains("active") ? "signin" : "signup"); }
+function doAuth(){ /* replaced by Supabase auth */ }
+function doSignout(){ window.doSignout && window.doSignout(); }
+function updateUserUI(){ /* handled by setupAppUser */ }):'—';}
 function updateCatStats(){document.getElementById('cs-stars').textContent=STARS.length;document.getElementById('cs-planets').textContent=PLANETS.length;document.getElementById('cs-sats').textContent=SATELLITES.length;document.getElementById('cs-comets').textContent=COMETS.length;document.getElementById('cs-meteors').textContent=METEOR_SHOWERS.length;document.getElementById('cs-neo').textContent=NEOS.length;}
 function goTab(t){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));document.getElementById('tp-'+t).classList.add('active');document.getElementById('nb-'+t).classList.add('active');if(t==='map')drawMap();}
 
@@ -1611,13 +1596,7 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 // ════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════
-(function(){
-  const s=localStorage.getItem('sntnl_u');
-  if(s){try{user=JSON.parse(s);recordings=user.recordings||[];document.getElementById('auser').value=user.username;}catch(e){}}
-  maxBufSecs=parseInt(document.getElementById('sel-prebuf')?.value||120);
-  document.getElementById('sel-prebuf')?.addEventListener('change',e=>{maxBufSecs=parseInt(e.target.value);});
-  renderRecs();
-})();
+// Old localStorage init removed — Supabase handles auth
 
 // ════════════════════════════════════════════════════════
 // SUPABASE CONFIG — Replace with your values
