@@ -11,8 +11,8 @@
 /* ═══════════════════════════════════════════════════════
    SECTION SWITCHER
 ═══════════════════════════════════════════════════════ */
-#section-auth { display: block; }
-#section-app  { display: none; flex-direction: column;
+#section-auth { display: none; }
+#section-app  { display: flex; flex-direction: column;
                 position: fixed; inset: 0; }
 
 /* ═══════════════════════════════════════════════════════
@@ -146,21 +146,17 @@ body::before {
 // ════════════════════════════════════════════════════════
 const SUPABASE_URL  = 'https://nsivlxypppjrpaienkmr.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zaXZseHlwcHBqcnBhaWVua21yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNjMzMTgsImV4cCI6MjA4OTgzOTMxOH0.lfHWLKOpw2Bg7TG-jKa1PDr4TQ9tLm_XMDIv_KD17jg';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON) : null;
 
 // ════════════════════════════════════════════════════════
 // SECTION SWITCHER
 // ════════════════════════════════════════════════════════
 function showSection(which) {
-  const authEl = document.getElementById('section-auth');
-  const appEl  = document.getElementById('section-app');
-  if (which === 'app') {
-    authEl.style.display = 'none';
-    appEl.style.display  = 'flex';
+  // Auth removed — always show app
+  const appEl = document.getElementById('section-app');
+  if (appEl) {
+    appEl.style.display = 'flex';
     setTimeout(() => { try { drawMap(); } catch(e) {} }, 150);
-  } else {
-    authEl.style.display = 'flex';
-    appEl.style.display  = 'none';
   }
 }
 
@@ -332,41 +328,25 @@ async function ensureProfile(user, consent) {
 
 // setSyncState declared above
 async function loadCloudRecordings() {
-  if (!currentSbUser) return;
-  setSyncState('syncing');
+  // Load from localStorage (no auth required)
   try {
-    const { data, error } = await sb.from('recordings')
-      .select('*').eq('user_id', currentSbUser.id).order('date',{ascending:false});
-    if (error) { setSyncState('error'); return; }
-    recordings = (data||[]).map(r => ({
-      id: r.id, title: r.title, date: r.date, duration: r.duration,
-      hasUAP: r.has_uap, manifest: r.manifest||{}, tagObjs: r.tag_objs||[],
-      lat: r.lat, lon: r.lon, alt: r.alt, az: r.az, el: r.el, _dbId: r.id
-    }));
-    setSyncState('ok');
+    const saved = localStorage.getItem('sentinel_recordings');
+    if (saved) recordings = JSON.parse(saved);
     renderRecs && renderRecs();
     drawMap    && drawMap();
-  } catch(e) { setSyncState('error'); console.warn('loadCloud:', e.message); }
+  } catch(e) { console.warn('loadRecs:', e.message); }
 }
 async function saveRecordingCloud(rec) {
-  if (!currentSbUser) return null;
-  setSyncState('syncing');
+  // Save to localStorage
   try {
-    const { data, error } = await sb.from('recordings').insert({
-      user_id: currentSbUser.id, title: rec.title, date: rec.date,
-      duration: rec.duration, has_uap: rec.hasUAP,
-      lat: rec.lat, lon: rec.lon, alt: rec.alt, az: rec.az, el: rec.el,
-      manifest: rec.manifest, tag_objs: rec.tagObjs
-    }).select().single();
-    setSyncState(error ? 'error' : 'ok');
-    return error ? null : data.id;
+    localStorage.setItem('sentinel_recordings', JSON.stringify(recordings));
+    setSyncState('ok');
+    return rec.id;
   } catch(e) { setSyncState('error'); return null; }
 }
 async function deleteRecordingCloud(dbId) {
-  if (!currentSbUser || !dbId) return;
-  setSyncState('syncing');
   try {
-    await sb.from('recordings').delete().eq('id', dbId);
+    localStorage.setItem('sentinel_recordings', JSON.stringify(recordings));
     setSyncState('ok');
   } catch(e) { setSyncState('error'); }
 }
@@ -387,40 +367,17 @@ document.addEventListener('click', e => {
 // ════════════════════════════════════════════════════════
 // COMBINED INIT
 // ════════════════════════════════════════════════════════
-(async function init() {
-  // Default: show auth
-  document.getElementById('section-auth').style.display = 'flex';
-  document.getElementById('section-app').style.display  = 'none';
-
-  // Check for existing session
-  try {
-    const { data } = await sb.auth.getSession();
-    if (data.session) {
-      currentSbUser = data.session.user;
-      await ensureProfile(data.session.user, true);
-      setupAppUser(data.session.user);
-      showSection('app');
-      await loadCloudRecordings();
-    }
-  } catch(e) {
-    console.warn('Session check failed — Supabase keys may not be set yet:', e.message);
-  }
-
-  // Auth state listener — handles OAuth/magic link callbacks
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
-      currentSbUser = session.user;
-      await ensureProfile(session.user, true);
-      setupAppUser(session.user);
-      showSection('app');
-      await loadCloudRecordings();
-    }
-    if (event === 'SIGNED_OUT') {
-      currentSbUser = null;
-      try { stopCam && stopCam(); } catch(e) {}
-      showSection('auth');
-    }
-  });
+(function init() {
+  // No auth — go straight to app
+  const appEl = document.getElementById('section-app');
+  if (appEl) appEl.style.display = 'flex';
+  setTimeout(() => {
+    try { updateCatStats(); } catch(e) {}
+    try { startClock(); }    catch(e) {}
+    try { reqGPS(); }        catch(e) {}
+    try { renderRecs(); }    catch(e) {}
+    try { drawMap(); }       catch(e) {}
+  }, 100);
 })();
 
 // ════════════════════════════════════════════════════════
@@ -1083,7 +1040,9 @@ function fmtD(s){const m=Math.floor(s/60),sc=s%60;return(m>0?m+'m ':'')+sc+'s'}
 // ════════════════════════════════════════════════════════
 // RECORDINGS LIST
 // ════════════════════════════════════════════════════════
-function saveRecs(){}
+function saveRecs(){
+  try { localStorage.setItem("sentinel_recordings", JSON.stringify(recordings)); } catch(e) {}
+}
 function renderRecs(){
   const list=document.getElementById('reclist');document.getElementById('reccnt').textContent=recordings.length+' EVENTS';
   if(!recordings.length){list.innerHTML='<div class="empty"><svg width="44" height="44" viewBox="0 0 44 44" fill="none"><circle cx="22" cy="22" r="20" stroke="#5a7a8a" stroke-width="1.4"/><path d="M14 22h16M22 14v16" stroke="#5a7a8a" stroke-width="1.4" stroke-linecap="round"/></svg><div class="empty-txt">NO EVENTS LOGGED YET</div></div>';return;}
@@ -1340,9 +1299,9 @@ window.stopRec = async function() {
     drawMap();
   }
 };
-window.doSignout = async function() {
+window.doSignout = function() {
   try { stopCam && stopCam(); } catch(e) {}
-  await sb.auth.signOut();
+  try { location.reload(); } catch(e) {}
 };
 window.doExport = function() {
   const d = JSON.stringify({operator:currentSbUser?.email,exported:new Date().toISOString(),recordings},null,2);
@@ -1359,135 +1318,7 @@ window.doExport = function() {
 <!-- ═══════════════════════════════════════════════════════ -->
 <!-- AUTH SECTION                                            -->
 <!-- ═══════════════════════════════════════════════════════ -->
-<div id="section-auth">
-  <div class="rings">
-    <div class="ring"></div><div class="ring"></div><div class="ring"></div>
-  </div>
-  <div class="auth-wrap">
-    <div class="logo-area">
-      <svg class="logo-icon" width="56" height="56" viewBox="0 0 56 56" fill="none">
-        <circle cx="28" cy="28" r="26" stroke="rgba(0,122,96,.3)" stroke-width="1"/>
-        <circle cx="28" cy="28" r="18" stroke="rgba(0,122,96,.5)" stroke-width="1"/>
-        <circle cx="28" cy="28" r="4" fill="var(--accent)"/>
-        <line x1="28" y1="2"  x2="28" y2="10" stroke="var(--accent)" stroke-width="1.5"/>
-        <line x1="28" y1="46" x2="28" y2="54" stroke="var(--accent)" stroke-width="1.5"/>
-        <line x1="2"  y1="28" x2="10" y2="28" stroke="var(--accent)" stroke-width="1.5"/>
-        <line x1="46" y1="28" x2="54" y2="28" stroke="var(--accent)" stroke-width="1.5"/>
-        <path d="M28 14 L31 21 L28 19.5 L25 21 Z" fill="var(--accent)" opacity=".8"/>
-      </svg>
-      <div class="wordmark">SENTINEL</div>
-      <div class="auth-tagline">UAP Detection System · by Nexior-Gray</div>
-    </div>
-    <div class="card">
-      <div class="tabs">
-        <div class="tab active" id="tab-signin" onclick="switchTab('signin')">SIGN IN</div>
-        <div class="tab"        id="tab-signup" onclick="switchTab('signup')">CREATE ACCOUNT</div>
-      </div>
-      <div id="amsg" class="amsg"></div>
 
-      <!-- SIGN IN -->
-      <div id="form-signin">
-        <div class="fg">
-          <label class="fl">Email Address</label>
-          <input class="fi" id="si-email" type="email" placeholder="operator@domain.com" autocomplete="email">
-        </div>
-        <div class="fg">
-          <label class="fl">Password</label>
-          <input class="fi" id="si-pass" type="password" placeholder="••••••••" autocomplete="current-password">
-        </div>
-        <div style="text-align:right;margin-bottom:20px">
-          <span onclick="showReset()" style="font-family:var(--mono);font-size:10px;color:var(--accent);cursor:pointer;letter-spacing:.1em">FORGOT PASSWORD?</span>
-        </div>
-        <button class="btn-primary" id="btn-signin" onclick="doSignIn()">SIGN IN</button>
-        <div class="divider">OR</div>
-        <button class="btn-oauth" onclick="doGitHub()">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-            <path d="M9 0C4.03 0 0 4.03 0 9c0 3.98 2.58 7.35 6.16 8.54.45.08.61-.2.61-.44v-1.54c-2.5.54-3.03-1.21-3.03-1.21-.41-1.04-1-1.32-1-1.32-.82-.56.06-.55.06-.55.9.06 1.38.93 1.38.93.8 1.37 2.1.97 2.61.74.08-.58.31-.97.57-1.19-1.99-.23-4.09-1-4.09-4.44 0-.98.35-1.78.93-2.41-.09-.23-.4-1.14.09-2.37 0 0 .76-.24 2.49.93A8.64 8.64 0 0 1 9 4.37c.77 0 1.54.1 2.27.3 1.72-1.17 2.48-.93 2.48-.93.49 1.23.18 2.14.09 2.37.58.63.93 1.43.93 2.41 0 3.45-2.1 4.21-4.1 4.43.32.28.61.82.61 1.66v2.46c0 .24.16.52.62.43A9.01 9.01 0 0 0 18 9C18 4.03 13.97 0 9 0z"/>
-          </svg>
-          Continue with GitHub
-        </button>
-        <button class="btn-magic" onclick="showMagicLink('signin')">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v2M7 11v2M1 7h2M11 7h2M3 3l1.4 1.4M9.6 9.6L11 11M3 11l1.4-1.4M9.6 4.4L11 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.3"/></svg>
-          Sign in with magic link
-        </button>
-        <div class="magic-sent" id="magic-sent-si">
-          <div class="magic-sent-title">✉ MAGIC LINK SENT</div>
-          <div class="magic-sent-sub">Check your email and click the link to sign in instantly.</div>
-        </div>
-      </div>
-
-      <!-- SIGN UP -->
-      <div id="form-signup" style="display:none">
-        <div class="fg">
-          <label class="fl">Callsign / Username</label>
-          <input class="fi" id="su-name" type="text" placeholder="your callsign" autocomplete="username">
-        </div>
-        <div class="fg">
-          <label class="fl">Email Address</label>
-          <input class="fi" id="su-email" type="email" placeholder="operator@domain.com" autocomplete="email">
-        </div>
-        <div class="fg">
-          <label class="fl">Password</label>
-          <input class="fi" id="su-pass" type="password" placeholder="minimum 8 characters" autocomplete="new-password" oninput="checkPwStrength(this.value)">
-          <div class="pw-strength"><div class="pw-fill" id="pw-fill"></div></div>
-        </div>
-        <div class="fg">
-          <label class="fl">Confirm Password</label>
-          <input class="fi" id="su-pass2" type="password" placeholder="repeat password" autocomplete="new-password">
-        </div>
-        <label class="consent" id="consent-label">
-          <input type="checkbox" id="consent-cb">
-          <span class="consent-text">
-            I agree to the Terms of Service and Privacy Policy, and I am happy to
-            receive marketing emails and product updates from <strong>Nexior-Gray</strong>.
-          </span>
-        </label>
-        <button class="btn-primary" id="btn-signup" onclick="doSignUp()">CREATE FREE ACCOUNT</button>
-        <div class="divider">OR</div>
-        <button class="btn-oauth" onclick="doGitHub()">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-            <path d="M9 0C4.03 0 0 4.03 0 9c0 3.98 2.58 7.35 6.16 8.54.45.08.61-.2.61-.44v-1.54c-2.5.54-3.03-1.21-3.03-1.21-.41-1.04-1-1.32-1-1.32-.82-.56.06-.55.06-.55.9.06 1.38.93 1.38.93.8 1.37 2.1.97 2.61.74.08-.58.31-.97.57-1.19-1.99-.23-4.09-1-4.09-4.44 0-.98.35-1.78.93-2.41-.09-.23-.4-1.14.09-2.37 0 0 .76-.24 2.49.93A8.64 8.64 0 0 1 9 4.37c.77 0 1.54.1 2.27.3 1.72-1.17 2.48-.93 2.48-.93.49 1.23.18 2.14.09 2.37.58.63.93 1.43.93 2.41 0 3.45-2.1 4.21-4.1 4.43.32.28.61.82.61 1.66v2.46c0 .24.16.52.62.43A9.01 9.01 0 0 0 18 9C18 4.03 13.97 0 9 0z"/>
-          </svg>
-          Sign up with GitHub
-        </button>
-        <button class="btn-magic" onclick="showMagicLink('signup')">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v2M7 11v2M1 7h2M11 7h2M3 3l1.4 1.4M9.6 9.6L11 11M3 11l1.4-1.4M9.6 4.4L11 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.3"/></svg>
-          Sign up with magic link
-        </button>
-        <div class="magic-sent" id="magic-sent-su">
-          <div class="magic-sent-title">✉ MAGIC LINK SENT</div>
-          <div class="magic-sent-sub">Check your email — click the link to create your account and sign in instantly.</div>
-        </div>
-        <p style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:12px;text-align:center;letter-spacing:.06em;line-height:1.6">
-          By signing up with GitHub or magic link you also agree to receive<br>marketing emails from Nexior-Gray.
-        </p>
-      </div>
-
-      <!-- EMAIL VERIFY -->
-      <div class="verify-screen" id="verify-screen">
-        <div class="verify-icon">✉️</div>
-        <div class="verify-title">Check Your Inbox</div>
-        <p class="verify-sub">We sent a confirmation link to<br><strong id="verify-email">—</strong></p>
-        <p class="verify-sub" style="margin-top:12px">Click it to activate your account, then come back and sign in.</p>
-        <button class="btn-primary" style="margin-top:28px" onclick="switchTab('signin')">BACK TO SIGN IN</button>
-      </div>
-
-      <!-- RESET PASSWORD -->
-      <div class="reset-screen" id="reset-screen">
-        <span class="back-link" onclick="hideReset()">← BACK TO SIGN IN</span>
-        <div class="fg">
-          <label class="fl">Email Address</label>
-          <input class="fi" id="reset-email" type="email" placeholder="operator@domain.com">
-        </div>
-        <button class="btn-primary" onclick="doReset()">SEND RESET LINK</button>
-      </div>
-    </div>
-    <div class="auth-footer">
-      Free to use · Powered by Nexior-Gray ·
-      <a href="mailto:support@nexior-gray.com">support@nexior-gray.com</a>
-    </div>
-  </div>
-</div>
 <!-- END AUTH SECTION -->
 
 <!-- PLACEHOLDER: APP SECTION INJECTED BY BUILD SCRIPT -->
