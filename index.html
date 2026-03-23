@@ -836,7 +836,7 @@ function doAuth(){ /* replaced by Supabase auth */ }
 function doSignout(){ window.doSignout && window.doSignout(); }
 function updateUserUI(){ /* handled by setupAppUser */ }
 function updateCatStats(){document.getElementById('cs-stars').textContent=STARS.length;document.getElementById('cs-planets').textContent=PLANETS.length;document.getElementById('cs-sats').textContent=SATELLITES.length;document.getElementById('cs-comets').textContent=COMETS.length;document.getElementById('cs-meteors').textContent=METEOR_SHOWERS.length;document.getElementById('cs-neo').textContent=NEOS.length;}
-function goTab(t){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));document.getElementById('tp-'+t).classList.add('active');document.getElementById('nb-'+t).classList.add('active');if(t==='map')drawMap();}
+function goTab(t){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));document.getElementById('tp-'+t).classList.add('active');document.getElementById('nb-'+t).classList.add('active');if(t==='map'){ setTimeout(drawMap, 100); }}
 
 // ════════════════════════════════════════════════════════
 // CLOCK / GPS
@@ -1587,24 +1587,136 @@ function doExport(){const d=JSON.stringify({operator:user?.username,exported:new
 // MAP
 // ════════════════════════════════════════════════════════
 function drawMap(){
-  const cv=document.getElementById('map-cv');const ctx=cv.getContext('2d');
-  cv.width=cv.offsetWidth;cv.height=cv.offsetHeight;const W=cv.width,H=cv.height;
-  ctx.fillStyle='#f0ead8';ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle='rgba(60,100,80,.07)';ctx.lineWidth=1;
-  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-  for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-  ctx.strokeStyle='rgba(60,100,80,.2)';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(W*.2,H*.06,W*.6,W*.78,3);ctx.stroke();
-  ctx.font='9px "Share Tech Mono"';ctx.fillStyle='rgba(60,100,80,.4)';ctx.textAlign='center';ctx.fillText('SIGHTING MAP',W/2,H*.04);
-  recordings.forEach(r=>{
-    const x=W*.2+((parseFloat(r.lon||'-0.12')+1.5)/3.5)*W*.6;const y=H*.06+((52.5-parseFloat(r.lat||'51.5'))/4)*H*.78;
-    const cx=isNaN(x)?W/2+(Math.random()-.5)*80:Math.max(W*.21,Math.min(W*.79,x));const cy=isNaN(y)?H/2+(Math.random()-.5)*60:Math.max(H*.07,Math.min(H*.83,y));
-    if(r.hasUAP){ctx.beginPath();ctx.arc(cx,cy,9,0,Math.PI*2);ctx.fillStyle='rgba(0,120,50,.15)';ctx.fill();ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fillStyle='#007730';ctx.fill();}
-    else{ctx.beginPath();ctx.arc(cx,cy,4,0,Math.PI*2);ctx.fillStyle='rgba(60,100,80,.6)';ctx.fill();}
+  const cv = document.getElementById('map-cv');
+  if (!cv) return;
+
+  // Wait for element to have dimensions
+  const parent = cv.parentElement;
+  const W = parent ? parent.clientWidth  : window.innerWidth;
+  const H = parent ? (parent.clientHeight - 80) : (window.innerHeight * 0.6);
+  if (!W || !H || W < 10 || H < 10) {
+    setTimeout(drawMap, 200);
+    return;
+  }
+  cv.width  = W;
+  cv.height = H;
+  const ctx = cv.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#f0ead8';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(60,100,80,.08)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // Border
+  ctx.strokeStyle = 'rgba(60,100,80,.2)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(4, 4, W-8, H-8);
+
+  // Title
+  ctx.font = '10px "Share Tech Mono"';
+  ctx.fillStyle = 'rgba(60,100,80,.45)';
+  ctx.textAlign = 'center';
+  ctx.fillText('SIGHTING MAP', W/2, 22);
+
+  // Observer GPS
+  const obsLat = parseFloat(gps && gps.lat) || 51.508;
+  const obsLon = parseFloat(gps && gps.lon) || -0.128;
+
+  // Map bounds — centre on observer, ~2° span
+  const span = 2.0;
+  const mapLeft   = obsLon - span;
+  const mapRight  = obsLon + span;
+  const mapTop    = obsLat + span * (H/W);
+  const mapBottom = obsLat - span * (H/W);
+
+  function toScreen(lat, lon) {
+    const x = (lon - mapLeft)  / (mapRight - mapLeft)  * W;
+    const y = (mapTop - lat)   / (mapTop - mapBottom)  * H;
+    return { x, y };
+  }
+
+  // Plot recordings
+  recordings.forEach(r => {
+    const lat = parseFloat(r.lat);
+    const lon = parseFloat(r.lon);
+    if (isNaN(lat) || isNaN(lon)) return;
+
+    const { x, y } = toScreen(lat, lon);
+    if (x < 0 || x > W || y < 0 || y > H) return;
+
+    if (r.hasUAP) {
+      // UAP — green pulsing dot
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(0,120,50,.12)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI*2);
+      ctx.fillStyle = '#007730';
+      ctx.fill();
+      // Label
+      ctx.font = '9px "Share Tech Mono"';
+      ctx.fillStyle = '#007730';
+      ctx.textAlign = 'center';
+      ctx.fillText(r.title, x, y - 12);
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(0,122,96,.65)';
+      ctx.fill();
+      ctx.font = '9px "Share Tech Mono"';
+      ctx.fillStyle = 'rgba(60,100,80,.7)';
+      ctx.textAlign = 'center';
+      ctx.fillText(r.title, x, y - 10);
+    }
   });
-  ctx.strokeStyle='rgba(60,100,80,.45)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(W/2-13,H/2);ctx.lineTo(W/2+13,H/2);ctx.stroke();ctx.beginPath();ctx.moveTo(W/2,H/2-13);ctx.lineTo(W/2,H/2+13);ctx.stroke();
-  ctx.beginPath();ctx.arc(W/2,H/2,5,0,Math.PI*2);ctx.fillStyle='rgba(60,100,80,.75)';ctx.fill();ctx.fillStyle='rgba(60,100,80,.45)';ctx.fillText('YOU',W/2,H/2+20);
-  document.getElementById('ms-tot').textContent=recordings.length;document.getElementById('ms-uap').textContent=recordings.filter(r=>r.hasUAP).length;document.getElementById('ms-acft').textContent=recordings.reduce((a,r)=>a+(r.manifest?.aircraftIdentified||0),0);document.getElementById('ms-hrs').textContent=(recordings.reduce((a,r)=>a+r.duration,0)/3600).toFixed(1);
+
+  // Observer marker — always centred
+  const obs = toScreen(obsLat, obsLon);
+  ctx.strokeStyle = 'rgba(60,100,80,.5)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(obs.x-14, obs.y); ctx.lineTo(obs.x+14, obs.y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(obs.x, obs.y-14); ctx.lineTo(obs.x, obs.y+14); ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(obs.x, obs.y, 5, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,122,96,.8)';
+  ctx.fill();
+  ctx.font = '9px "Share Tech Mono"';
+  ctx.fillStyle = 'rgba(60,100,80,.55)';
+  ctx.textAlign = 'center';
+  ctx.fillText('YOU', obs.x, obs.y + 20);
+
+  // GPS coords display
+  ctx.font = '9px "Share Tech Mono"';
+  ctx.fillStyle = 'rgba(60,100,80,.45)';
+  ctx.textAlign = 'left';
+  ctx.fillText(obsLat.toFixed(4) + '°N  ' + obsLon.toFixed(4) + '°E', 10, H - 10);
+
+  // Scale bar (~10km)
+  const scaleKm = 20;
+  const scaleDeg = scaleKm / 111;
+  const scaleW = (scaleDeg / (mapRight - mapLeft)) * W;
+  ctx.strokeStyle = 'rgba(60,100,80,.4)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(W - 20 - scaleW, H - 14);
+  ctx.lineTo(W - 20, H - 14);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(60,100,80,.45)';
+  ctx.textAlign = 'right';
+  ctx.fillText(scaleKm + 'km', W - 16, H - 18);
+
+  // Update stats
+  const msEl = (id) => document.getElementById(id);
+  if (msEl('ms-tot'))  msEl('ms-tot').textContent  = recordings.length;
+  if (msEl('ms-uap'))  msEl('ms-uap').textContent  = recordings.filter(r=>r.hasUAP).length;
+  if (msEl('ms-acft')) msEl('ms-acft').textContent = recordings.reduce((a,r)=>a+(r.manifest?.aircraftIdentified||0),0);
+  if (msEl('ms-hrs'))  msEl('ms-hrs').textContent  = (recordings.reduce((a,r)=>a+r.duration,0)/3600).toFixed(1);
 }
 
 // ════════════════════════════════════════════════════════
@@ -2183,6 +2295,25 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 }
 /* User menu dropdown */
 .user-menu { position: absolute !important; top: 52px !important; right: 0 !important; }
+
+
+/* ── MAP FIX ─────────────────────────────────────────── */
+.mapwrap { 
+  position: relative; 
+  height: 100%; 
+  display: flex; 
+  flex-direction: column;
+  overflow: hidden;
+}
+#map-cv { 
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+.map-stats {
+  flex-shrink: 0;
+}
 
 </style>
 </head>
