@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
 <style>
@@ -285,7 +287,7 @@ function checkPwStrength(v) {
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   if (document.getElementById('section-app').style.display !== 'none') return;
-  if (document.getElementById('tab-signin').classList.contains('active')) doSignIn();
+  if (document.getElementById('tab-signin') && document.getElementById('tab-signin').classList.contains('active')) doSignIn();
   else doSignUp();
 });
 
@@ -362,7 +364,7 @@ function toggleUserMenu() {
 document.addEventListener('click', e => {
   const m = document.getElementById('user-menu');
   const t = document.getElementById('tuser');
-  if (m && t && !m.contains(e.target) && !t.contains(e.target))
+  if (m && t && m.contains && t.contains && !m.contains(e.target) && !t.contains(e.target))
     m.classList.remove('open');
 });
 
@@ -831,12 +833,12 @@ let flightOn=false,liveFlights=[]; // current overhead flights
 // ════════════════════════════════════════════════════════
 function showAuth(){ showSection('auth'); }
 function showApp(){ showSection('app'); }
-function toggleMode(){ switchTab(document.getElementById("tab-signup").classList.contains("active") ? "signin" : "signup"); }
+function toggleMode(){ const el = document.getElementById("tab-signup"); if(el) switchTab(el.classList.contains("active") ? "signin" : "signup"); }
 function doAuth(){ /* replaced by Supabase auth */ }
 function doSignout(){ window.doSignout && window.doSignout(); }
 function updateUserUI(){ /* handled by setupAppUser */ }
 function updateCatStats(){document.getElementById('cs-stars').textContent=STARS.length;document.getElementById('cs-planets').textContent=PLANETS.length;document.getElementById('cs-sats').textContent=SATELLITES.length;document.getElementById('cs-comets').textContent=COMETS.length;document.getElementById('cs-meteors').textContent=METEOR_SHOWERS.length;document.getElementById('cs-neo').textContent=NEOS.length;}
-function goTab(t){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));document.getElementById('tp-'+t).classList.add('active');document.getElementById('nb-'+t).classList.add('active');if(t==='map'){ setTimeout(drawMap, 100); }}
+function goTab(t){document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));document.getElementById('tp-'+t).classList.add('active');document.getElementById('nb-'+t).classList.add('active');if(t==='map'){ setTimeout(function(){ drawMap(); if(window._leafletMap) window._leafletMap.invalidateSize(); }, 200); }}
 
 // ════════════════════════════════════════════════════════
 // CLOCK / GPS
@@ -850,7 +852,8 @@ function startClock(){
 }
 function reqGPS(){
   if(!navigator.geolocation)return;
-  navigator.geolocation.watchPosition(p=>{gps.lat=p.coords.latitude.toFixed(6);gps.lon=p.coords.longitude.toFixed(6);gps.alt=p.coords.altitude?p.coords.altitude.toFixed(0):'—';document.getElementById('hud-tl').innerHTML='LAT: '+gps.lat+'°<br>LON: '+gps.lon+'°<br>ALT: '+gps.alt+'m';},()=>{gps={lat:'51.508100',lon:'-0.127800',alt:'12'};document.getElementById('hud-tl').innerHTML='LAT: 51.508100°<br>LON: -0.127800°<br>ALT: 12m';});
+  navigator.geolocation.watchPosition(p=>{gps.lat=p.coords.latitude.toFixed(6);gps.lon=p.coords.longitude.toFixed(6);gps.alt=p.coords.altitude?p.coords.altitude.toFixed(0):'—';document.getElementById('hud-tl').innerHTML='LAT: '+gps.lat+'°<br>LON: '+gps.lon+'°<br>ALT: '+gps.alt+'m';
+    if(window._youMarker){window._youMarker.setLatLng([parseFloat(gps.lat),parseFloat(gps.lon)]);}},()=>{gps={lat:'51.508100',lon:'-0.127800',alt:'12'};document.getElementById('hud-tl').innerHTML='LAT: 51.508100°<br>LON: -0.127800°<br>ALT: 12m';});
 }
 
 // ════════════════════════════════════════════════════════
@@ -1587,136 +1590,103 @@ function doExport(){const d=JSON.stringify({operator:user?.username,exported:new
 // MAP
 // ════════════════════════════════════════════════════════
 function drawMap(){
-  const cv = document.getElementById('map-cv');
-  if (!cv) return;
+  const container = document.getElementById('leaflet-map');
+  if (!container) return;
 
-  // Wait for element to have dimensions
-  const parent = cv.parentElement;
-  const W = parent ? parent.clientWidth  : window.innerWidth;
-  const H = parent ? (parent.clientHeight - 80) : (window.innerHeight * 0.6);
-  if (!W || !H || W < 10 || H < 10) {
-    setTimeout(drawMap, 200);
-    return;
+  const lat = parseFloat(gps && gps.lat) || 51.508;
+  const lon = parseFloat(gps && gps.lon) || -0.128;
+
+  // Init Leaflet map once
+  if (!window._leafletMap) {
+    // Small delay to ensure container has dimensions
+    if (container.offsetWidth < 10) { setTimeout(drawMap, 300); return; }
+
+    window._leafletMap = L.map('leaflet-map', {
+      center: [lat, lon],
+      zoom: 13,
+      zoomControl: true,
+      attributionControl: true
+    });
+
+    // OpenStreetMap tiles (free, no API key)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+      maxZoom: 18
+    }).addTo(window._leafletMap);
+
+    // You-are-here marker
+    const youIcon = L.divIcon({
+      html: '<div style="width:14px;height:14px;background:#007a60;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 3px rgba(0,122,96,.3)"></div>',
+      iconSize: [14,14],
+      iconAnchor: [7,7],
+      className: ''
+    });
+    window._youMarker = L.marker([lat, lon], {icon: youIcon})
+      .addTo(window._leafletMap)
+      .bindPopup('<b style="font-family:monospace">YOU ARE HERE</b><br>' + lat.toFixed(5) + ', ' + lon.toFixed(5));
+
+    window._recMarkers = [];
+  } else {
+    // Update your position
+    window._youMarker && window._youMarker.setLatLng([lat, lon]);
+    window._leafletMap.setView([lat, lon], window._leafletMap.getZoom());
   }
-  cv.width  = W;
-  cv.height = H;
-  const ctx = cv.getContext('2d');
 
-  // Background
-  ctx.fillStyle = '#f0ead8';
-  ctx.fillRect(0, 0, W, H);
-
-  // Grid
-  ctx.strokeStyle = 'rgba(60,100,80,.08)';
-  ctx.lineWidth = 1;
-  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-
-  // Border
-  ctx.strokeStyle = 'rgba(60,100,80,.2)';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(4, 4, W-8, H-8);
-
-  // Title
-  ctx.font = '10px "Share Tech Mono"';
-  ctx.fillStyle = 'rgba(60,100,80,.45)';
-  ctx.textAlign = 'center';
-  ctx.fillText('SIGHTING MAP', W/2, 22);
-
-  // Observer GPS
-  const obsLat = parseFloat(gps && gps.lat) || 51.508;
-  const obsLon = parseFloat(gps && gps.lon) || -0.128;
-
-  // Map bounds — centre on observer, ~2° span
-  const span = 2.0;
-  const mapLeft   = obsLon - span;
-  const mapRight  = obsLon + span;
-  const mapTop    = obsLat + span * (H/W);
-  const mapBottom = obsLat - span * (H/W);
-
-  function toScreen(lat, lon) {
-    const x = (lon - mapLeft)  / (mapRight - mapLeft)  * W;
-    const y = (mapTop - lat)   / (mapTop - mapBottom)  * H;
-    return { x, y };
+  // Clear old recording markers
+  if (window._recMarkers) {
+    window._recMarkers.forEach(m => m.remove());
+    window._recMarkers = [];
   }
 
   // Plot recordings
   recordings.forEach(r => {
-    const lat = parseFloat(r.lat);
-    const lon = parseFloat(r.lon);
-    if (isNaN(lat) || isNaN(lon)) return;
+    const rLat = parseFloat(r.lat);
+    const rLon = parseFloat(r.lon);
+    if (isNaN(rLat) || isNaN(rLon)) return;
 
-    const { x, y } = toScreen(lat, lon);
-    if (x < 0 || x > W || y < 0 || y > H) return;
+    const isUAP = r.hasUAP;
+    const qs = r.manifest && r.manifest.qualityScore ? r.manifest.qualityScore : 0;
 
-    if (r.hasUAP) {
-      // UAP — green pulsing dot
-      ctx.beginPath();
-      ctx.arc(x, y, 10, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(0,120,50,.12)';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x, y, 5, 0, Math.PI*2);
-      ctx.fillStyle = '#007730';
-      ctx.fill();
-      // Label
-      ctx.font = '9px "Share Tech Mono"';
-      ctx.fillStyle = '#007730';
-      ctx.textAlign = 'center';
-      ctx.fillText(r.title, x, y - 12);
-    } else {
-      ctx.beginPath();
-      ctx.arc(x, y, 5, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(0,122,96,.65)';
-      ctx.fill();
-      ctx.font = '9px "Share Tech Mono"';
-      ctx.fillStyle = 'rgba(60,100,80,.7)';
-      ctx.textAlign = 'center';
-      ctx.fillText(r.title, x, y - 10);
-    }
+    const markerHtml = isUAP
+      ? '<div style="width:18px;height:18px;background:#007730;border:2px solid #39ff6a;border-radius:50%;box-shadow:0 0 8px rgba(57,255,106,.5)"></div>'
+      : '<div style="width:12px;height:12px;background:rgba(0,122,96,.7);border:2px solid #007a60;border-radius:50%"></div>';
+
+    const icon = L.divIcon({
+      html: markerHtml,
+      iconSize: isUAP ? [18,18] : [12,12],
+      iconAnchor: isUAP ? [9,9] : [6,6],
+      className: ''
+    });
+
+    const date = new Date(r.date).toLocaleString('en-GB', {
+      day:'2-digit', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit'
+    });
+
+    const popupContent = `
+      <div style="font-family:monospace;font-size:11px;min-width:160px">
+        <b style="font-size:13px;color:${isUAP?'#007730':'#007a60'}">${r.title}</b><br>
+        ${isUAP ? '<span style="color:#007730;font-weight:bold">⚠ UAP EVENT</span><br>' : ''}
+        <span style="color:#666">${date}</span><br>
+        ${rLat.toFixed(5)}°, ${rLon.toFixed(5)}°<br>
+        Duration: ${r.duration ? Math.floor(r.duration/60)+'m '+r.duration%60+'s' : '—'}<br>
+        ${isUAP ? 'Evidence: ' + qs + '%' : ''}
+      </div>`;
+
+    const marker = L.marker([rLat, rLon], {icon}).addTo(window._leafletMap);
+    marker.bindPopup(popupContent);
+    window._recMarkers.push(marker);
   });
 
-  // Observer marker — always centred
-  const obs = toScreen(obsLat, obsLon);
-  ctx.strokeStyle = 'rgba(60,100,80,.5)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(obs.x-14, obs.y); ctx.lineTo(obs.x+14, obs.y); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(obs.x, obs.y-14); ctx.lineTo(obs.x, obs.y+14); ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(obs.x, obs.y, 5, 0, Math.PI*2);
-  ctx.fillStyle = 'rgba(0,122,96,.8)';
-  ctx.fill();
-  ctx.font = '9px "Share Tech Mono"';
-  ctx.fillStyle = 'rgba(60,100,80,.55)';
-  ctx.textAlign = 'center';
-  ctx.fillText('YOU', obs.x, obs.y + 20);
-
-  // GPS coords display
-  ctx.font = '9px "Share Tech Mono"';
-  ctx.fillStyle = 'rgba(60,100,80,.45)';
-  ctx.textAlign = 'left';
-  ctx.fillText(obsLat.toFixed(4) + '°N  ' + obsLon.toFixed(4) + '°E', 10, H - 10);
-
-  // Scale bar (~10km)
-  const scaleKm = 20;
-  const scaleDeg = scaleKm / 111;
-  const scaleW = (scaleDeg / (mapRight - mapLeft)) * W;
-  ctx.strokeStyle = 'rgba(60,100,80,.4)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(W - 20 - scaleW, H - 14);
-  ctx.lineTo(W - 20, H - 14);
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(60,100,80,.45)';
-  ctx.textAlign = 'right';
-  ctx.fillText(scaleKm + 'km', W - 16, H - 18);
+  // Force map to recalculate size
+  setTimeout(() => window._leafletMap && window._leafletMap.invalidateSize(), 100);
 
   // Update stats
-  const msEl = (id) => document.getElementById(id);
-  if (msEl('ms-tot'))  msEl('ms-tot').textContent  = recordings.length;
-  if (msEl('ms-uap'))  msEl('ms-uap').textContent  = recordings.filter(r=>r.hasUAP).length;
-  if (msEl('ms-acft')) msEl('ms-acft').textContent = recordings.reduce((a,r)=>a+(r.manifest?.aircraftIdentified||0),0);
-  if (msEl('ms-hrs'))  msEl('ms-hrs').textContent  = (recordings.reduce((a,r)=>a+r.duration,0)/3600).toFixed(1);
+  const ms = id => document.getElementById(id);
+  if (ms('ms-tot'))  ms('ms-tot').textContent  = recordings.length;
+  if (ms('ms-uap'))  ms('ms-uap').textContent  = recordings.filter(r=>r.hasUAP).length;
+  if (ms('ms-acft')) ms('ms-acft').textContent = recordings.reduce((a,r)=>a+(r.manifest&&r.manifest.aircraftIdentified||0),0);
+  if (ms('ms-hrs'))  ms('ms-hrs').textContent  = (recordings.reduce((a,r)=>a+(r.duration||0),0)/3600).toFixed(1);
 }
 
 // ════════════════════════════════════════════════════════
@@ -2432,15 +2402,18 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 
     <!-- MAP -->
     <div class="tp" id="tp-map">
-      <div class="mapwrap"><canvas id="map-cv"></canvas>
-        <div class="map-stats"><div class="ms-row">
-          <div class="ms"><div class="ms-val" id="ms-tot">0</div><div class="ms-lbl">Total</div></div>
-          <div class="ms"><div class="ms-val uap" id="ms-uap">0</div><div class="ms-lbl">UAP</div></div>
-          <div class="ms"><div class="ms-val acft" id="ms-acft">0</div><div class="ms-lbl">Flights seen</div></div>
-          <div class="ms"><div class="ms-val" id="ms-hrs">0</div><div class="ms-lbl">Hours</div></div>
-        </div></div>
+  <div style="position:relative;height:100%;display:flex;flex-direction:column">
+    <div id="leaflet-map" style="flex:1;min-height:0;width:100%"></div>
+    <div class="map-stats">
+      <div class="ms-row">
+        <div class="ms"><div class="ms-val" id="ms-tot">0</div><div class="ms-lbl">Total</div></div>
+        <div class="ms"><div class="ms-val uap" id="ms-uap">0</div><div class="ms-lbl">UAP</div></div>
+        <div class="ms"><div class="ms-val acft" id="ms-acft">0</div><div class="ms-lbl">Flights seen</div></div>
+        <div class="ms"><div class="ms-val" id="ms-hrs">0</div><div class="ms-lbl">Hours</div></div>
       </div>
     </div>
+  </div>
+</div>
 
     <!-- SETTINGS -->
     <div class="tp" id="tp-settings">
