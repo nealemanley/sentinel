@@ -12,7 +12,7 @@
   --accent:#007a60;--accent2:#0060aa;
   --col-star:#334488;--col-planet:#886600;--col-sat:#005588;
   --col-dso:#6633aa;--col-comet:#006644;--col-meteor:#994400;
-  --col-neo:#aa2200;--col-aircraft:#cc5500;--col-uap:#007730;
+  --col-neo:#aa2200;--col-aircraft:#cc5500;--col-military:#cc2244;--col-sar:#00aacc;--col-police:#aa44cc;--col-gov:#886600;--col-uap:#007730;
   --warn:#cc3300;--dim:rgba(40,80,60,.55);--text:#1a2820;--muted:#7a8070;
   --mono:'Share Tech Mono',monospace;--sans:'Barlow Condensed',sans-serif;--body:'Barlow',sans-serif;
   --scan:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.04) 2px,rgba(0,0,0,.04) 4px);
@@ -127,6 +127,11 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 .dbox.meteor{border-color:rgba(160,60,0,.85)}
 .dbox.neo{border-color:rgba(160,0,0,.8)}
 .dbox.aircraft{border-color:var(--col-aircraft);animation:acftmov .4s ease-in-out}
+.dbox.military{border-color:var(--col-military);animation:milpulse 2s ease-in-out infinite}
+.dbox.sar{border-color:var(--col-sar)}
+.dbox.police{border-color:var(--col-police)}
+.dbox.gov{border-color:var(--col-gov)}
+@keyframes milpulse{0%,100%{box-shadow:0 0 0 0 rgba(204,34,68,.35)}50%{box-shadow:0 0 0 6px rgba(204,34,68,0)}}
 .dbox.uap{border-color:var(--col-uap);animation:uapp 1.1s ease-in-out infinite}
 @keyframes cometglow{0%,100%{box-shadow:0 0 0 0 rgba(0,100,70,.3)}50%{box-shadow:0 0 6px 2px rgba(0,100,70,.15)}}
 @keyframes uapp{0%,100%{box-shadow:0 0 0 0 rgba(0,120,50,.45)}50%{box-shadow:0 0 0 8px rgba(0,120,50,0)}}
@@ -140,6 +145,10 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 .dbox.meteor .dlbl{background:rgba(160,60,0,.09);color:var(--col-meteor)}
 .dbox.neo .dlbl{background:rgba(160,0,0,.08);color:var(--col-neo)}
 .dbox.aircraft .dlbl{background:rgba(180,80,0,.12);color:var(--col-aircraft)}
+.dbox.military .dlbl{background:rgba(180,0,40,.12);color:var(--col-military)}
+.dbox.sar     .dlbl{background:rgba(0,140,180,.1);color:var(--col-sar)}
+.dbox.police  .dlbl{background:rgba(140,40,180,.1);color:var(--col-police)}
+.dbox.gov     .dlbl{background:rgba(120,90,0,.1);color:var(--col-gov)}
 .dbox.uap .dlbl{background:rgba(0,100,50,.14);color:var(--col-uap)}
 
 /* aircraft direction arrow */
@@ -368,7 +377,8 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
       <div class="cl"><div class="cl-dot" style="border-color:var(--col-comet)"></div>Comets</div>
       <div class="cl"><div class="cl-dot" style="border-color:var(--col-meteor)"></div>Meteors</div>
       <div class="cl"><div class="cl-dot" style="border-color:var(--col-neo)"></div>NEOs</div>
-      <div class="cl"><div class="cl-dot" style="border-color:var(--col-aircraft)"></div>Aircraft</div>
+      <div class="cl"><div class="cl-dot" style="border-color:var(--col-aircraft)"></div>Civil Aircraft</div>
+      <div class="cl"><div class="cl-dot" style="border-color:var(--col-military)"></div>Military</div>
       <div class="cl"><div class="cl-dot" style="border-color:var(--col-uap)"></div>Unidentified</div>
     </div>
     <button class="btn-launch" onclick="showAuth()"><span>INITIALISE SYSTEM</span><span>→</span></button>
@@ -735,48 +745,211 @@ const NEOS=[
 
 // ── AIRLINE ICAO prefix lookup (~50 carriers) ──────────────
 const AIRLINES={
-  BAW:"British Airways",RYR:"Ryanair",EZY:"easyJet",VIR:"Virgin Atlantic",
-  TOM:"TUI Airways",TCX:"Thomas Cook",LOG:"Loganair",BEE:"Flybe",
-  AAL:"American Airlines",DAL:"Delta Air Lines",UAL:"United Airlines",
-  SWA:"Southwest Airlines",JBU:"JetBlue",SKW:"SkyWest",
-  DLH:"Lufthansa",AFR:"Air France",KLM:"KLM",IBE:"Iberia",
-  AZA:"ITA Airways",SAS:"Scandinavian",FIN:"Finnair",LOT:"LOT Polish",
-  CSN:"China Southern",CCA:"Air China",CHH:"Hainan Airlines",
-  AIC:"Air India",JAL:"Japan Airlines",ANA:"All Nippon Airways",
-  SIA:"Singapore Airlines",CPA:"Cathay Pacific",KAL:"Korean Air",
-  ETH:"Ethiopian",EK:"Emirates",QTR:"Qatar Airways",UAE:"flydubai",
-  THY:"Turkish Airlines",SVR:"Aeroflot",AFL:"Aeroflot",
-  QFA:"Qantas",NZL:"Air New Zealand",SIA:"Singapore Air",
-  TAP:"TAP Portugal",AEA:"Air Europa",VLG:"Vueling",
-  WZZ:"Wizz Air",FDB:"flydubai",MSR:"EgyptAir",RAM:"Royal Air Maroc",
-  AXB:"Air India Express",GOI:"Go First",IGO:"IndiGo",
+  // ── UK / IRELAND CIVIL ──────────────────────────────
+  BAW:"British Airways",SHT:"BA Shuttle",BAW:"British Airways CityFlyer",
+  RYR:"Ryanair",EZY:"easyJet",EZS:"easyJet Switzerland",
+  VIR:"Virgin Atlantic",TOM:"TUI Airways",TCX:"TUI (Thomas Cook)",
+  LOG:"Loganair",BEE:"Flybe",EXS:"Jet2",WOW:"Wizz Air UK",
+  NWL:"Newcatle Charter",OAW:"Titan Airways",
+  // ── EUROPEAN CIVIL ─────────────────────────────────
+  DLH:"Lufthansa",CFG:"Condor",EWG:"Eurowings",DLH:"Lufthansa CityLine",
+  AFR:"Air France",HOP:"HOP! Air France",
+  KLM:"KLM",KLC:"KLM Cityhopper",
+  IBE:"Iberia",VLG:"Vueling",IBS:"Iberia Express",
+  AZA:"ITA Airways",BPA:"Blue Panorama",
+  SAS:"Scandinavian Airlines",SCW:"Snowflake",
+  FIN:"Finnair",NLY:"Norra",
+  LOT:"LOT Polish Airlines",
+  AUI:"Ukraine International",
+  CSA:"Czech Airlines",TVS:"Travel Service",
+  BEL:"Brussels Airlines",
+  LGL:"Luxair",
+  RJA:"Royal Jordanian",
+  THY:"Turkish Airlines",THY:"TK",PGT:"Pegasus Airlines",
+  AHY:"Azerbaijan Airlines",
+  // ── NORTH AMERICAN CIVIL ───────────────────────────
+  AAL:"American Airlines",AAY:"Allegiant Air",
+  DAL:"Delta Air Lines",ASA:"Alaska Airlines",
+  UAL:"United Airlines",SKW:"SkyWest Airlines",
+  SWA:"Southwest Airlines",JBU:"JetBlue",
+  WJA:"WestJet",ACA:"Air Canada",
+  // ── MIDDLE EAST / GULF CIVIL ──────────────────────
+  EK:"Emirates",QTR:"Qatar Airways",ETD:"Etihad Airways",
+  UAE:"flydubai",FDB:"flydubai",GFA:"Gulf Air",
+  SVN:"Saudi Arabian Airlines",OMA:"Oman Air",
+  // ── ASIA / PACIFIC CIVIL ──────────────────────────
+  SIA:"Singapore Airlines",CPA:"Cathay Pacific",
+  JAL:"Japan Airlines",ANA:"All Nippon Airways",
+  KAL:"Korean Air",AAR:"Asiana Airlines",
+  CCA:"Air China",CSN:"China Southern",CES:"China Eastern",
+  CHH:"Hainan Airlines",MAS:"Malaysia Airlines",
+  THA:"Thai Airways",VJC:"VietJet Air",
+  QFA:"Qantas",NZL:"Air New Zealand",
+  AIC:"Air India",IGO:"IndiGo",GOI:"Go First",AXB:"Air India Express",
+  // ── AFRICA / OTHER CIVIL ──────────────────────────
+  ETH:"Ethiopian Airlines",KQA:"Kenya Airways",
+  MSR:"EgyptAir",RAM:"Royal Air Maroc",
+  SVR:"Aeroflot",AFL:"Aeroflot",
+  TAP:"TAP Portugal",AEA:"Air Europa",
+  WZZ:"Wizz Air",ROU:"Romanian Air",
+  // ── CARGO ─────────────────────────────────────────
+  FDX:"FedEx Express",UPS:"UPS Airlines",
+  DHL:"DHL Air",BCS:"European Air Transport",
+  GTI:"Atlas Air",CLX:"Cargolux",
+  AMX:"Aeromexico Cargo",PAC:"Polar Air Cargo",
+  // ── PRIVATE / BIZJET ──────────────────────────────
+  VJT:"VistaJet",TAG:"TAG Aviation",
+  // ── MILITARY & GOVERNMENT ─────────────────────────
+  // NATO / ALLIED
+  RRR:"RAF (Royal Air Force)",NVY:"Royal Navy Air",
+  AAF:"British Army Air Corps",
+  RFR:"French Air Force",GAF:"German Air Force",
+  NOF:"Royal Norwegian Air Force",
+  BEL:"Belgian Air Component",
+  RNL:"Royal Netherlands Air Force",
+  DAF:"Danish Air Force",
+  NATO:"NATO AWACS",AWC:"NATO E-3A",
+  // US Military
+  AFO:"US Air Force",
+  RCH:"USAF AMC (Air Mobility Command)",
+  AIO:"USAF Airlift",
+  CNV:"US Navy Aviation",
+  RCH:"USAF C-17 Globemaster",
+  SAM:"Special Air Mission (Air Force One fleet)",
+  EXEC:"US VIP Executive Flight",
+  // ISR / Surveillance
+  ISR:"Intelligence Surveillance Recon",
+  OSY:"USAF RC-135 Rivet Joint",
+  JAKE:"RAF RC-135W Rivet Joint",
+  // Tankers
+  ASCOT:"RAF Voyager/VC10 Tanker",
+  SNAKE:"RAF Sentinel R1",
+  TARTAN:"RAF Typhoon",
+  RHINO:"F/A-18 Hornets (carrier)",
+  // Other nations
+  SVF:"Swedish Air Force",
+  FAF:"Finnish Air Force",
+  PLF:"Polish Air Force",
+  OAF:"Italian Air Force (AMI)",
+  EAF:"Spanish Air Force (Ejercito del Aire)",
+  // MEDEVAC / Search & Rescue
+  HLE:"Coastguard/SAR Helicopter",
+  RESCUE:"Search and Rescue",
+  MDAY:"MEDEVAC Air Ambulance",
+  // Police / Government
+  NPAS:"National Police Air Service (UK)",
+  HMED:"HEMS Air Ambulance",
+  GVT:"Government VIP Flight",
 };
 
-// Simulated flights pool (realistic UK airspace)
+// ── FLIGHT DATABASE ──────────────────────────────────────────────────────
+// Covers civilian, cargo, private, military, government and special mission
+// aircraft realistically present in UK/European airspace.
+// cat field: 'civil'|'cargo'|'private'|'military'|'gov'|'sar'|'police'
 const SIM_FLIGHTS=[
-  {cs:"BAW442",airline:"British Airways",ac:"B77W",from:"LHR",to:"JFK",alt:38000,hdg:280,spd:490},
-  {cs:"RYR8621",airline:"Ryanair",ac:"B738",from:"STN",to:"AGP",alt:35000,hdg:175,spd:450},
-  {cs:"EZY2341",airline:"easyJet",ac:"A320",from:"LGW",to:"BCN",alt:36000,hdg:165,spd:460},
-  {cs:"DAL401",airline:"Delta",ac:"A359",from:"LHR",to:"ATL",alt:39000,hdg:262,spd:510},
-  {cs:"UAL924",airline:"United",ac:"B763",from:"LHR",to:"EWR",alt:37000,hdg:275,spd:495},
-  {cs:"DLH902",airline:"Lufthansa",ac:"A343",from:"LHR",to:"FRA",alt:33000,hdg:095,spd:430},
-  {cs:"AFR1681",airline:"Air France",ac:"A320",from:"CDG",to:"LHR",alt:24000,hdg:285,spd:400},
-  {cs:"KLM1023",airline:"KLM",ac:"B738",from:"AMS",to:"LHR",alt:28000,hdg:270,spd:420},
-  {cs:"VIR25",airline:"Virgin Atlantic",ac:"A35K",from:"LHR",to:"LAX",alt:40000,hdg:310,spd:525},
-  {cs:"QTR001",airline:"Qatar Airways",ac:"B77W",from:"DOH",to:"LHR",alt:38000,hdg:295,spd:505},
-  {cs:"EK009",airline:"Emirates",ac:"A388",from:"DXB",to:"LHR",alt:39000,hdg:297,spd:515},
-  {cs:"TOM7432",airline:"TUI Airways",ac:"B738",from:"MAN",to:"PMI",alt:35000,hdg:195,spd:445},
-  {cs:"WZZ1823",airline:"Wizz Air",ac:"A321",from:"LTN",to:"BUD",alt:34000,hdg:110,spd:440},
-  {cs:"SAS523",airline:"Scandinavian",ac:"A320",from:"ARN",to:"LHR",alt:36000,hdg:248,spd:455},
-  {cs:"FIN336",airline:"Finnair",ac:"A359",from:"HEL",to:"LHR",alt:37000,hdg:240,spd:480},
-  {cs:"BAW172",airline:"British Airways",ac:"B789",from:"LHR",to:"SIN",alt:40000,hdg:082,spd:520},
-  {cs:"AAL137",airline:"American Airlines",ac:"B77W",from:"LHR",to:"ORD",alt:38000,hdg:290,spd:500},
-  {cs:"THY1982",airline:"Turkish Airlines",ac:"B738",from:"IST",to:"LHR",alt:36000,hdg:278,spd:465},
-  {cs:"AIC111",airline:"Air India",ac:"B788",from:"LHR",to:"DEL",alt:39000,hdg:055,spd:510},
-  {cs:"SIA318",airline:"Singapore Air",ac:"A35K",from:"LHR",to:"SIN",alt:40000,hdg:065,spd:530},
-  {cs:"LOG6712",airline:"Loganair",ac:"AT76",from:"INV",to:"LHR",alt:18000,hdg:185,spd:290},
-  {cs:"CPA252",airline:"Cathay Pacific",ac:"B77W",from:"HKG",to:"LHR",alt:39000,hdg:302,spd:510},
-  {cs:"IBE7465",airline:"Iberia",ac:"A321",from:"MAD",to:"LHR",alt:33000,hdg:350,spd:440},
+
+  // ── CIVILIAN LONG-HAUL ────────────────────────────────────────────────
+  {cs:"BAW442",  airline:"British Airways",   ac:"B77W",cat:"civil",  from:"LHR",to:"JFK",   alt:38000,hdg:280,spd:490,vert:0},
+  {cs:"BAW172",  airline:"British Airways",   ac:"B789",cat:"civil",  from:"LHR",to:"SIN",   alt:40000,hdg:082,spd:520,vert:0},
+  {cs:"BAW263",  airline:"British Airways",   ac:"B788",cat:"civil",  from:"LHR",to:"NRT",   alt:39000,hdg:015,spd:515,vert:0},
+  {cs:"VIR25",   airline:"Virgin Atlantic",   ac:"A35K",cat:"civil",  from:"LHR",to:"LAX",   alt:40000,hdg:310,spd:525,vert:0},
+  {cs:"VIR46",   airline:"Virgin Atlantic",   ac:"B789",cat:"civil",  from:"LHR",to:"JFK",   alt:38000,hdg:282,spd:500,vert:0},
+  {cs:"EK009",   airline:"Emirates",          ac:"A388",cat:"civil",  from:"DXB",to:"LHR",   alt:39000,hdg:297,spd:515,vert:0},
+  {cs:"QTR001",  airline:"Qatar Airways",     ac:"B77W",cat:"civil",  from:"DOH",to:"LHR",   alt:38000,hdg:295,spd:505,vert:0},
+  {cs:"ETD004",  airline:"Etihad Airways",    ac:"A388",cat:"civil",  from:"AUH",to:"LHR",   alt:39000,hdg:293,spd:510,vert:0},
+  {cs:"DAL401",  airline:"Delta",             ac:"A359",cat:"civil",  from:"LHR",to:"ATL",   alt:39000,hdg:262,spd:510,vert:0},
+  {cs:"AAL137",  airline:"American Airlines", ac:"B77W",cat:"civil",  from:"LHR",to:"ORD",   alt:38000,hdg:290,spd:500,vert:0},
+  {cs:"UAL924",  airline:"United",            ac:"B763",cat:"civil",  from:"LHR",to:"EWR",   alt:37000,hdg:275,spd:495,vert:0},
+  {cs:"SIA318",  airline:"Singapore Air",     ac:"A35K",cat:"civil",  from:"LHR",to:"SIN",   alt:40000,hdg:065,spd:530,vert:0},
+  {cs:"CPA252",  airline:"Cathay Pacific",    ac:"B77W",cat:"civil",  from:"HKG",to:"LHR",   alt:39000,hdg:302,spd:510,vert:0},
+  {cs:"AIC111",  airline:"Air India",         ac:"B788",cat:"civil",  from:"LHR",to:"DEL",   alt:39000,hdg:055,spd:510,vert:0},
+  {cs:"FIN336",  airline:"Finnair",           ac:"A359",cat:"civil",  from:"HEL",to:"LHR",   alt:37000,hdg:240,spd:480,vert:0},
+  {cs:"THY1982", airline:"Turkish Airlines",  ac:"B738",cat:"civil",  from:"IST",to:"LHR",   alt:36000,hdg:278,spd:465,vert:0},
+
+  // ── CIVILIAN SHORT/MEDIUM HAUL ────────────────────────────────────────
+  {cs:"RYR8621", airline:"Ryanair",           ac:"B738",cat:"civil",  from:"STN",to:"AGP",   alt:35000,hdg:175,spd:450,vert:0},
+  {cs:"RYR44LF", airline:"Ryanair",           ac:"B738",cat:"civil",  from:"DUB",to:"STN",   alt:28000,hdg:092,spd:440,vert:-600},
+  {cs:"EZY2341", airline:"easyJet",           ac:"A320",cat:"civil",  from:"LGW",to:"BCN",   alt:36000,hdg:165,spd:460,vert:0},
+  {cs:"EZY7842", airline:"easyJet",           ac:"A319",cat:"civil",  from:"MAN",to:"AMS",   alt:32000,hdg:082,spd:440,vert:0},
+  {cs:"DLH902",  airline:"Lufthansa",         ac:"A343",cat:"civil",  from:"LHR",to:"FRA",   alt:33000,hdg:095,spd:430,vert:0},
+  {cs:"AFR1681", airline:"Air France",        ac:"A320",cat:"civil",  from:"CDG",to:"LHR",   alt:24000,hdg:285,spd:400,vert:-800},
+  {cs:"KLM1023", airline:"KLM",              ac:"B738",cat:"civil",  from:"AMS",to:"LHR",   alt:28000,hdg:270,spd:420,vert:0},
+  {cs:"SAS523",  airline:"Scandinavian",      ac:"A320",cat:"civil",  from:"ARN",to:"LHR",   alt:36000,hdg:248,spd:455,vert:0},
+  {cs:"TOM7432", airline:"TUI Airways",       ac:"B738",cat:"civil",  from:"MAN",to:"PMI",   alt:35000,hdg:195,spd:445,vert:0},
+  {cs:"WZZ1823", airline:"Wizz Air",          ac:"A321",cat:"civil",  from:"LTN",to:"BUD",   alt:34000,hdg:110,spd:440,vert:0},
+  {cs:"IBE7465", airline:"Iberia",            ac:"A321",cat:"civil",  from:"MAD",to:"LHR",   alt:33000,hdg:350,spd:440,vert:0},
+  {cs:"LOG6712", airline:"Loganair",          ac:"AT76",cat:"civil",  from:"INV",to:"LHR",   alt:18000,hdg:185,spd:290,vert:0},
+  {cs:"EXS602",  airline:"Jet2",              ac:"B738",cat:"civil",  from:"LBA",to:"PMI",   alt:35000,hdg:185,spd:445,vert:0},
+  {cs:"BEL601",  airline:"Brussels Airlines", ac:"A320",cat:"civil",  from:"BRU",to:"LHR",   alt:29000,hdg:272,spd:425,vert:0},
+  {cs:"LOT277",  airline:"LOT Polish",        ac:"B738",cat:"civil",  from:"WAW",to:"LHR",   alt:34000,hdg:258,spd:450,vert:0},
+
+  // ── CARGO ─────────────────────────────────────────────────────────────
+  {cs:"FDX5012", airline:"FedEx Express",     ac:"B763",cat:"cargo",  from:"CDG",to:"EMA",   alt:34000,hdg:285,spd:470,vert:0},
+  {cs:"FDX8201", airline:"FedEx Express",     ac:"MD11",cat:"cargo",  from:"MEM",to:"CDG",   alt:37000,hdg:065,spd:490,vert:0},
+  {cs:"UPS052",  airline:"UPS Airlines",      ac:"B748",cat:"cargo",  from:"SDF",to:"CGN",   alt:38000,hdg:078,spd:500,vert:0},
+  {cs:"DHL22X",  airline:"DHL Air",           ac:"B752",cat:"cargo",  from:"EMA",to:"LEJ",   alt:28000,hdg:088,spd:440,vert:0},
+  {cs:"CLX773",  airline:"Cargolux",          ac:"B748",cat:"cargo",  from:"LUX",to:"LHR",   alt:26000,hdg:272,spd:430,vert:-700},
+  {cs:"GTI8032", airline:"Atlas Air",         ac:"B748",cat:"cargo",  from:"LHR",to:"ORD",   alt:39000,hdg:285,spd:505,vert:0},
+  {cs:"BCS425",  airline:"DHL (EAT)",         ac:"A300",cat:"cargo",  from:"BRU",to:"LHR",   alt:22000,hdg:275,spd:390,vert:0},
+
+  // ── PRIVATE / BIZJET ──────────────────────────────────────────────────
+  {cs:"VJT441",  airline:"VistaJet",          ac:"G650",cat:"private",from:"ZRH",to:"LCY",   alt:45000,hdg:278,spd:560,vert:0},
+  {cs:"TAG31",   airline:"TAG Aviation",      ac:"FA7X",cat:"private",from:"LBG",to:"FBO",   alt:41000,hdg:282,spd:540,vert:0},
+  {cs:"NAJ7",    airline:"Private",           ac:"C56X",cat:"private",from:"GVA",to:"LCY",   alt:40000,hdg:280,spd:480,vert:0},
+  {cs:"EXEC01",  airline:"VIP Charter",       ac:"GL6T",cat:"private",from:"DUS",to:"BQH",   alt:43000,hdg:270,spd:545,vert:0},
+
+  // ── RAF (ROYAL AIR FORCE) ─────────────────────────────────────────────
+  {cs:"RRR7401", airline:"RAF Voyager KC2",   ac:"A330 MRTT",cat:"military",from:"RAF Brize Norton",to:"PATROL",alt:25000,hdg:195,spd:480,vert:0,mil:true},
+  {cs:"RRR2201", airline:"RAF Voyager KC3",   ac:"A330 MRTT",cat:"military",from:"RAF Brize Norton",to:"REFUEL",alt:27000,hdg:090,spd:475,vert:0,mil:true},
+  {cs:"TARTAN01",airline:"RAF Typhoon FGR4",  ac:"Typhoon",  cat:"military",from:"RAF Lossiemouth",to:"QRA",    alt:28000,hdg:180,spd:600,vert:0,mil:true},
+  {cs:"TARTAN11",airline:"RAF Typhoon FGR4",  ac:"Typhoon",  cat:"military",from:"RAF Coningsby",  to:"TRAINING",alt:22000,hdg:270,spd:580,vert:0,mil:true},
+  {cs:"ASCOT41", airline:"RAF Atlas C1",      ac:"A400M",    cat:"military",from:"RAF Brize Norton",to:"AKR",   alt:24000,hdg:135,spd:410,vert:0,mil:true},
+  {cs:"ASCOT88", airline:"RAF Globemaster",   ac:"C-17A",    cat:"military",from:"RAF Brize Norton",to:"YUMA",  alt:35000,hdg:290,spd:490,vert:0,mil:true},
+  {cs:"SNAKE01", airline:"RAF Sentinel R1",   ac:"B350ER",   cat:"military",from:"RAF Waddington", to:"ISR",    alt:45000,hdg:060,spd:460,vert:0,mil:true,role:"ISR"},
+  {cs:"JAKE21",  airline:"RAF RC-135W",       ac:"RC-135W",  cat:"military",from:"RAF Waddington", to:"SIGINT", alt:41000,hdg:045,spd:510,vert:0,mil:true,role:"SIGINT/Rivet Joint"},
+  {cs:"VORTEX1", airline:"RAF Poseidon MRA1", ac:"P-8A",     cat:"military",from:"RAF Lossiemouth",to:"MARITIME",alt:20000,hdg:000,spd:440,vert:0,mil:true,role:"Maritime Patrol"},
+  {cs:"MERLIN01",airline:"RAF Merlin HC4",    ac:"Merlin",   cat:"military",from:"RAF Benson",     to:"TRAINING",alt:4000, hdg:090,spd:160,vert:0,mil:true},
+  {cs:"PUMA22",  airline:"RAF Puma HC2",      ac:"Puma",     cat:"military",from:"RAF Benson",     to:"SUPPORT", alt:3500, hdg:270,spd:150,vert:0,mil:true},
+
+  // ── ROYAL NAVY AIR ────────────────────────────────────────────────────
+  {cs:"NVY01",   airline:"Royal Navy F-35B",  ac:"F-35B",    cat:"military",from:"RNAS Yeovilton", to:"DECK OPS",alt:18000,hdg:225,spd:550,vert:0,mil:true},
+  {cs:"NVY21",   airline:"Royal Navy Wildcat",ac:"AW159",    cat:"military",from:"RNAS Yeovilton", to:"TRAINING",alt:5000, hdg:180,spd:170,vert:0,mil:true},
+  {cs:"NVY301",  airline:"HMS QE Wildcat",    ac:"AW159",    cat:"military",from:"HMS Queen Elizabeth",to:"PATROL",alt:3000,hdg:090,spd:155,vert:0,mil:true},
+
+  // ── US MILITARY (common in UK airspace) ──────────────────────────────
+  {cs:"RCH871",  airline:"USAF C-17 Globemaster",ac:"C-17A",cat:"military",from:"RAF Mildenhall",to:"RAMSTEIN",alt:30000,hdg:085,spd:490,vert:0,mil:true},
+  {cs:"RCH204",  airline:"USAF C-17 AMC",     ac:"C-17A",   cat:"military",from:"KDOV",          to:"EGVN",   alt:32000,hdg:065,spd:492,vert:0,mil:true},
+  {cs:"REACH77", airline:"USAF C-130J",        ac:"C-130J",  cat:"military",from:"RAF Mildenhall",to:"TRAINING",alt:18000,hdg:175,spd:360,vert:0,mil:true},
+  {cs:"JAKE77",  airline:"USAF RC-135",        ac:"RC-135V", cat:"military",from:"RAF Mildenhall",to:"RECON",  alt:40000,hdg:020,spd:510,vert:0,mil:true,role:"SIGINT"},
+  {cs:"COBRA11", airline:"USAF F-15C Eagle",   ac:"F-15C",   cat:"military",from:"RAF Lakenheath",to:"TRAINING",alt:20000,hdg:050,spd:650,vert:800,mil:true},
+  {cs:"VIPER21", airline:"USAF F-15E Strike Eagle",ac:"F-15E",cat:"military",from:"RAF Lakenheath",to:"STRIKE TRG",alt:15000,hdg:090,spd:700,vert:0,mil:true},
+  {cs:"SAM01",   airline:"USAF Special Air Mission",ac:"VC-25A",cat:"military",from:"KADW",       to:"EGLL",   alt:41000,hdg:075,spd:595,vert:0,mil:true,role:"VIP/Presidential"},
+  {cs:"VENUS90", airline:"USAF E-3 Sentry AWACS",ac:"E-3B",  cat:"military",from:"Geilenkirchen",to:"AWACS ORBIT",alt:29000,hdg:180,spd:460,vert:0,mil:true,role:"AWACS"},
+
+  // ── NATO AWACS / AEW ──────────────────────────────────────────────────
+  {cs:"NATO01",  airline:"NATO E-3A AWACS",    ac:"E-3A",    cat:"military",from:"Geilenkirchen",to:"NATO ORBIT",alt:28000,hdg:090,spd:450,vert:0,mil:true,role:"NATO AWACS"},
+  {cs:"NATO11",  airline:"NATO AWACS Orbit",   ac:"E-3A",    cat:"military",from:"Geilenkirchen",to:"ORBIT",   alt:28000,hdg:275,spd:455,vert:0,mil:true,role:"NATO AWACS"},
+
+  // ── ALLIED AIR FORCES ─────────────────────────────────────────────────
+  {cs:"GAF681",  airline:"German Air Force",   ac:"A400M",   cat:"military",from:"Wunstorf",      to:"EDZM",   alt:22000,hdg:275,spd:405,vert:0,mil:true},
+  {cs:"FAF401",  airline:"French Air Force",   ac:"Rafale B",cat:"military",from:"Saint-Dizier",  to:"TRAINING",alt:25000,hdg:350,spd:620,vert:0,mil:true},
+  {cs:"FAF110",  airline:"French Air Force A330",ac:"A330 MRTT",cat:"military",from:"Istres",     to:"REFUEL", alt:26000,hdg:005,spd:470,vert:0,mil:true},
+  {cs:"RNL401",  airline:"Royal Netherlands AF",ac:"F-35A",  cat:"military",from:"Leeuwarden",   to:"TRAINING",alt:22000,hdg:270,spd:590,vert:0,mil:true},
+  {cs:"NOF311",  airline:"Royal Norwegian AF",  ac:"F-35A",  cat:"military",from:"Orland",        to:"TRAINING",alt:24000,hdg:185,spd:580,vert:0,mil:true},
+  {cs:"SVF201",  airline:"Swedish Air Force",   ac:"JAS-39E",cat:"military",from:"F21 Kallax",   to:"TRAINING",alt:26000,hdg:195,spd:610,vert:0,mil:true},
+
+  // ── POLICE & EMERGENCY SERVICES ──────────────────────────────────────
+  {cs:"NPAS10",  airline:"Natl Police Air Svc", ac:"AS365",  cat:"police",  from:"Various",       to:"PATROL", alt:2500, hdg:000,spd:140,vert:0,mil:false,role:"Police Surveillance"},
+  {cs:"NPAS15",  airline:"Natl Police Air Svc", ac:"EC135",  cat:"police",  from:"Various",       to:"INCIDENT",alt:1800,hdg:090,spd:130,vert:0,mil:false,role:"Police Air Support"},
+  {cs:"HEMS1",   airline:"London HEMS",         ac:"EC135",  cat:"sar",     from:"RHLH",          to:"INCIDENT",alt:1500,hdg:270,spd:120,vert:0,mil:false,role:"Air Ambulance"},
+  {cs:"HEMS4",   airline:"Yorkshire Air Amb.",  ac:"AW169",  cat:"sar",     from:"EGBE",          to:"INCIDENT",alt:2000,hdg:045,spd:135,vert:0,mil:false,role:"HEMS"},
+  {cs:"RESCUE51",airline:"HM Coastguard SAR",   ac:"AW189",  cat:"sar",     from:"Humberside",    to:"SAR",    alt:1000,hdg:090,spd:145,vert:0,mil:false,role:"Search & Rescue"},
+  {cs:"RESCUE91",airline:"RAF SAR Puma",         ac:"Puma",  cat:"sar",     from:"RAF Valley",    to:"SAR",    alt:1500,hdg:270,spd:155,vert:0,mil:false,role:"Search & Rescue"},
+
+  // ── GOVERNMENT / VIP ──────────────────────────────────────────────────
+  {cs:"KNGFLT1", airline:"Royal Flight (BAe146)",ac:"BAe146",cat:"gov",     from:"RAF Northolt",  to:"ABZ",    alt:28000,hdg:005,spd:380,vert:0,mil:false,role:"Royal Flight"},
+  {cs:"BRAF05",  airline:"UK Govt Envoy",        ac:"A321",  cat:"gov",     from:"RAF Northolt",  to:"BRU",    alt:30000,hdg:092,spd:430,vert:0,mil:false,role:"Government VIP"},
+  {cs:"GVNR01",  airline:"Immigration Charter",  ac:"B737",  cat:"gov",     from:"LHR",           to:"KBL",    alt:37000,hdg:062,spd:465,vert:0,mil:false,role:"Government Charter"},
 ];
 
 const DSO=[
@@ -926,13 +1099,17 @@ function renderFlightPanel(){
   const strip=document.getElementById('fs-flights');
   const ct=document.getElementById('fp-count');
   ct.textContent=liveFlights.length+' flights';
-  list.innerHTML=liveFlights.map(f=>`
-    <div class="fp-item">
-      <div class="fp-cs">✈ ${f.cs}</div>
-      <div class="fp-airline">${f.airline||'—'}</div>
-      <div class="fp-route">${f.from&&f.to?f.from+' → '+f.to:f.hdg?'HDG '+f.hdg+'°':'—'}</div>
-      <div class="fp-alt">${f.alt?f.alt.toLocaleString()+'ft':'—'} ${f.vert>0?'↑':f.vert<0?'↓':'→'}</div>
-    </div>`).join('');
+  list.innerHTML=liveFlights.map(f=>{
+      const isMil=f.cat==='military'||f.mil===true;const isSar=f.cat==='sar';const isPol=f.cat==='police';const isGov=f.cat==='gov';
+      const ic=isMil?'✦':isSar?'⛑':isPol?'●':isGov?'★':'✈';
+      const col=isMil?'#cc2244':isSar?'#00aacc':isPol?'#aa44cc':isGov?'#886600':'#cc5500';
+      return `<div class="fp-item" style="border-left:2px solid ${col}">
+        <div class="fp-cs" style="color:${col}">${ic} ${f.cs}</div>
+        <div class="fp-airline">${(f.airline||'—').slice(0,22)}</div>
+        <div class="fp-route">${f.from&&f.to?f.from+' → '+f.to:f.role?f.role:f.hdg?'HDG '+f.hdg+'°':'—'}</div>
+        <div class="fp-alt" style="color:${col}">${f.alt?f.alt.toLocaleString()+'ft':'—'} ${f.vert>0?'↑':f.vert<0?'↓':'→'}</div>
+      </div>`;
+    }).join('');
   // HUD strip
   if(liveFlights.length>0){
     document.getElementById('flight-strip').style.display='block';
@@ -1013,11 +1190,36 @@ function runDet(){
     box.style.cssText=`width:${sz}px;height:${sz}px;left:${obj.x}px;top:${obj.y}px`;
     const lbl=document.createElement('div');lbl.className='dlbl';
     if(obj.type==='aircraft'){
-      // Callsign + airline on two lines
-      lbl.innerHTML=`<span style="color:var(--col-aircraft);font-weight:bold">${obj.n}</span>`;
-      if(obj.airline){const sub=document.createElement('div');sub.style.cssText='font-size:8px;color:rgba(255,149,0,.7);margin-top:1px';sub.textContent=obj.airline.slice(0,16);box.appendChild(sub);}
+      // Determine subtype class and colour
+      const acat=obj.cat||'civil';
+      const isMil=acat==='military';const isSar=acat==='sar';const isPol=acat==='police';const isGov=acat==='gov';
+      const subcls=isMil?'military':isSar?'sar':isPol?'police':isGov?'gov':'aircraft';
+      const subcol=isMil?'var(--col-military)':isSar?'var(--col-sar)':isPol?'var(--col-police)':isGov?'var(--col-gov)':'var(--col-aircraft)';
+      box.className='dbox '+subcls;
+      // Callsign line
+      lbl.innerHTML=`<span style="color:${subcol};font-weight:bold">${obj.n}</span>`;
+      // Airline / unit name
+      if(obj.airline){
+        const sub=document.createElement('div');
+        sub.style.cssText=`font-size:8px;color:${subcol};opacity:.75;margin-top:1px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap`;
+        sub.textContent=obj.airline.slice(0,22);
+        box.appendChild(sub);
+      }
+      // Role badge for military/special
+      if(obj.role){
+        const rb=document.createElement('div');
+        rb.style.cssText=`font-size:7px;color:${subcol};opacity:.6;margin-top:1px;letter-spacing:.06em`;
+        rb.textContent=obj.role;
+        box.appendChild(rb);
+      }
+      // Military flag indicator
+      if(isMil){
+        const mf=document.createElement('div');
+        mf.style.cssText='font-size:9px;margin-top:1px';mf.textContent='✦ MIL';
+        lbl.appendChild(mf);
+      }
       // direction arrow
-      if(obj.hdg!==undefined){const arr=document.createElement('div');arr.className='acft-arrow';arr.textContent=hdgArrow(obj.hdg);box.appendChild(arr);}
+      if(obj.hdg!==undefined){const arr=document.createElement('div');arr.className='acft-arrow';arr.style.color=subcol;arr.textContent=hdgArrow(obj.hdg);box.appendChild(arr);}
     }else{lbl.textContent=obj.n.length>20?obj.n.slice(0,18)+'…':obj.n;}
     box.appendChild(lbl);layer.appendChild(box);
     if(obj.type==='uap')uCt++;else if(obj.type==='aircraft')aCt++;else kCt++;
@@ -1032,7 +1234,8 @@ function runDet(){
       obj.type==='meteor'?`Peak: ${obj.peak||'—'} · ${obj.rate||'—'}`:
       obj.type==='neo'?`${obj.diam||'—'} · ${obj.dist||'—'}`:
       obj.type==='uap'?'⚠ UNIDENTIFIED — LOGGING':'—';
-    di.innerHTML=`<div class="di-badge" style="background:rgba(0,0,0,.04);border-color:rgba(255,255,255,.08);${badgeColor}">${obj.type.toUpperCase()}</div><div class="di-name" style="${badgeColor}">${obj.n}</div><div class="di-meta">${meta}</div>`;
+        const displayType=obj.type==='aircraft'?(obj.cat==='military'?'MILITARY':obj.cat==='sar'?'SAR/HEMS':obj.cat==='police'?'POLICE':obj.cat==='gov'?'GOVT/VIP':obj.cat==='cargo'?'CARGO':'CIVIL ACFT'):obj.type.toUpperCase();
+    di.innerHTML=`<div class="di-badge" style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08);${badgeColor}">${displayType}</div><div class="di-name" style="${badgeColor}">${obj.n}</div><div class="di-meta">${meta}</div>`;
     di.onclick=()=>openDetModal(obj);plist.appendChild(di);
   });
   document.getElementById('dc-known').textContent=kCt;document.getElementById('dc-acft').textContent=aCt;document.getElementById('dc-uap').textContent=uCt;
@@ -1125,14 +1328,18 @@ function openRecModal(id){
   document.getElementById('mover').classList.add('open');
 }
 function openDetModal(obj){
-  const typeLabel={star:'STAR · CATALOGUED',planet:'PLANET · SOLAR SYSTEM',satellite:'SATELLITE · TRACKED',dso:'DEEP SKY OBJECT',comet:'COMET · CATALOGUED',meteor:'METEOR SHOWER',neo:'NEAR-EARTH OBJECT',aircraft:'AIRCRAFT · ADS-B IDENTIFIED',uap:'⚠ UNIDENTIFIED'};
+  const typeLabel={star:'STAR · CATALOGUED',planet:'PLANET · SOLAR SYSTEM',satellite:'SATELLITE · TRACKED',dso:'DEEP SKY OBJECT',comet:'COMET · CATALOGUED',meteor:'METEOR SHOWER',neo:'NEAR-EARTH OBJECT',aircraft:obj.cat==='military'?'✦ MILITARY AIRCRAFT · IDENTIFIED':obj.cat==='sar'?'⛑ SAR / HEMS · IDENTIFIED':obj.cat==='police'?'POLICE AIRCRAFT · IDENTIFIED':obj.cat==='gov'?'★ GOVERNMENT / VIP · IDENTIFIED':'AIRCRAFT · ADS-B IDENTIFIED',uap:'⚠ UNIDENTIFIED'};
   document.getElementById('mbadge').textContent=typeLabel[obj.type]||obj.type.toUpperCase();
   document.getElementById('mtitle').textContent=obj.n;
   document.getElementById('mcoords').textContent=`${gps.lat||'51.508100'}°, ${gps.lon||'-0.127800'}°`;
   document.getElementById('mazel').textContent=obj.hdg?`HDG ${obj.hdg}° · ${obj.alt?obj.alt.toLocaleString()+'ft':'—'}`:'— AZ / — EL';
   const extra=obj.type==='star'?`<div class="info-item"><div class="il">Magnitude</div><div class="iv">${obj.mag||'—'}</div></div><div class="info-item"><div class="il">Constellation</div><div class="iv">${obj.con||'—'}</div></div>`:
     obj.type==='satellite'?`<div class="info-item"><div class="il">Category</div><div class="iv">${obj.cat||'—'}</div></div><div class="info-item"><div class="il">Orbital Alt</div><div class="iv">${obj.alt||'—'}km</div></div><div class="info-item"><div class="il">Inclination</div><div class="iv">${obj.inc||'—'}°</div></div><div class="info-item"><div class="il">NORAD ID</div><div class="iv">${obj.norad||'—'}</div></div>`:
-    obj.type==='aircraft'?`<div class="info-item"><div class="il">Callsign</div><div class="iv" style="color:var(--col-aircraft)">${obj.cs||obj.n}</div></div><div class="info-item"><div class="il">Airline</div><div class="iv">${obj.airline||'—'}</div></div><div class="info-item"><div class="il">Aircraft</div><div class="iv">${obj.ac||'—'}</div></div><div class="info-item"><div class="il">Altitude</div><div class="iv">${obj.alt?obj.alt.toLocaleString()+'ft':'—'}</div></div><div class="info-item"><div class="il">Route</div><div class="iv">${obj.from&&obj.to?obj.from+' → '+obj.to:'—'}</div></div><div class="info-item"><div class="il">Heading</div><div class="iv">${obj.hdg?obj.hdg+'° '+hdgArrow(obj.hdg):'—'}</div></div>`:
+    obj.type==='aircraft'?(()=>{
+      const mc=obj.cat==='military'?'var(--col-military)':obj.cat==='sar'?'var(--col-sar)':obj.cat==='police'?'var(--col-police)':obj.cat==='gov'?'var(--col-gov)':'var(--col-aircraft)';
+      const catLabel=obj.cat==='military'?'✦ MILITARY':obj.cat==='sar'?'⛑ SEARCH & RESCUE':obj.cat==='police'?'POLICE / SECURITY':obj.cat==='gov'?'★ GOVERNMENT / VIP':obj.cat==='cargo'?'CARGO':'CIVIL AVIATION';
+      return `<div class="info-item"><div class="il">Callsign</div><div class="iv" style="color:${mc};font-weight:bold">${obj.cs||obj.n}</div></div><div class="info-item"><div class="il">Category</div><div class="iv" style="color:${mc}">${catLabel}</div></div><div class="info-item"><div class="il">Unit / Airline</div><div class="iv">${obj.airline||'—'}</div></div><div class="info-item"><div class="il">Aircraft Type</div><div class="iv">${obj.ac||'—'}</div></div><div class="info-item"><div class="il">Altitude</div><div class="iv">${obj.alt?obj.alt.toLocaleString()+'ft':'—'}</div></div><div class="info-item"><div class="il">Route / Mission</div><div class="iv">${obj.from&&obj.to?obj.from+' → '+obj.to:obj.role||'—'}</div></div><div class="info-item"><div class="il">Heading / Speed</div><div class="iv">${obj.hdg?obj.hdg+'° '+hdgArrow(obj.hdg):'—'} ${obj.spd?'· '+obj.spd+'kts':''}</div></div>${obj.role?'<div class="info-item" style="grid-column:1/-1"><div class="il">Role</div><div class="iv">'+obj.role+'</div></div>':''}</div>`;
+    })():
     obj.type==='comet'?`<div class="info-item"><div class="il">Period</div><div class="iv">${obj.period||'—'}</div></div><div class="info-item"><div class="il">Next perihelion</div><div class="iv">${obj.next||'—'}</div></div><div class="info-item"><div class="il">Status</div><div class="iv">${obj.status||'—'}</div></div>`:
     obj.type==='meteor'?`<div class="info-item"><div class="il">Peak date</div><div class="iv">${obj.peak||'—'}</div></div><div class="info-item"><div class="il">Radiant</div><div class="iv">${obj.radiant||'—'}</div></div><div class="info-item"><div class="il">Parent body</div><div class="iv">${obj.parent||'—'}</div></div><div class="info-item"><div class="il">Rate at peak</div><div class="iv">${obj.rate||'—'}</div></div>`:
     obj.type==='neo'?`<div class="info-item"><div class="il">Diameter</div><div class="iv">${obj.diam||'—'}</div></div><div class="info-item"><div class="il">Distance</div><div class="iv">${obj.dist||'—'}</div></div><div class="info-item"><div class="il">Hazard class</div><div class="iv" style="color:var(--col-neo)">${obj.hazard||'—'}</div></div>`:'';
