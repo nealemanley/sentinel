@@ -2,28 +2,37 @@
   publish = "."
   command = ""
 
+# Serve app.html directly when requested
 [[redirects]]
-  from = "/app"
-  to   = "/app.html"
+  from   = "/app.html"
+  to     = "/app.html"
   status = 200
 
+# /app as alias
 [[redirects]]
-  from = "/auth/callback"
-  to   = "/index.html"
+  from   = "/app"
+  to     = "/app.html"
   status = 200
 
+# Auth callback — send to index
 [[redirects]]
-  from = "/*"
-  to   = "/index.html"
+  from   = "/auth/callback"
+  to     = "/index.html"
+  status = 200
+
+# Catch-all — everything else goes to index (the auth page)
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
   status = 200
 
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=*, geolocation=*"
+    X-Frame-Options          = "DENY"
+    X-Content-Type-Options   = "nosniff"
+    Referrer-Policy          = "strict-origin-when-cross-origin"
+    Permissions-Policy       = "camera=*, geolocation=*"
 
 [[headers]]
   for = "/app.html"
