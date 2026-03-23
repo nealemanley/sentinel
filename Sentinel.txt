@@ -1,3 +1,0 @@
-Supabase
-Project URL: https://nsivlxypppjrpaienkmr.supabase.co
-Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zaXZseHlwcHBqcnBhaWVua21yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNjMzMTgsImV4cCI6MjA4OTgzOTMxOH0.lfHWLKOpw2Bg7TG-jKa1PDr4TQ9tLm_XMDIv_KD17jg
