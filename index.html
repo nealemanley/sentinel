@@ -269,7 +269,7 @@ body::before {
     </div>
     <div class="auth-footer">
       Free to use · Powered by Nexior-Gray ·
-      <a href="mailto:support@nexior-gray.com">support@nexior-gray.com</a>
+      <a href="/cdn-cgi/l/email-protection#45363035352a3731052b203d2c2a37682237243c6b262a28"><span class="__cf_email__" data-cfemail="87f4f2f7f7e8f5f3c7e9e2ffeee8f5aae0f5e6fea9e4e8ea">[email&#160;protected]</span></a>
     </div>
   </div>
 </div>
@@ -532,14 +532,12 @@ body::before {
 
 <div class="toast" id="toast"></div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ════════════════════════════════════════════════════════
-// SUPABASE — replace YOUR_SUPABASE_PROJECT_URL and
-// YOUR_SUPABASE_ANON_KEY with your actual values
+// SUPABASE — credentials configured
 // ════════════════════════════════════════════════════════
 const SUPABASE_URL  = 'https://nsivlxypppjrpaienkmr.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zaXZseHlwcHBqcnBhaWVua21yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNjMzMTgsImV4cCI6MjA4OTgzOTMxOH0.lfHWLKOpw2Bg7TG-jKa1PDr4TQ9tLm_XMDIv_KD17jg
-';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zaXZseHlwcHBqcnBhaWVua21yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNjMzMTgsImV4cCI6MjA4OTgzOTMxOH0.lfHWLKOpw2Bg7TG-jKa1PDr4TQ9tLm_XMDIv_KD17jg';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ════════════════════════════════════════════════════════
@@ -1785,12 +1783,4 @@ window.doSignout = async function() {
 
 window.doExport = function() {
   const d = JSON.stringify({ operator: currentSbUser?.email, exported: new Date().toISOString(), recordings }, null, 2);
-  const b = new Blob([d], {type:'application/json'});
-  const u = URL.createObjectURL(b);
-  const a = document.createElement('a'); a.href=u; a.download='sentinel-evidence.json'; a.click();
-  toast('EVIDENCE DATA EXPORTED');
-};
-
-</script>
-</body>
-</html>
+  c
