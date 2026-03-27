@@ -1984,6 +1984,135 @@ function requestCompassPermission() {
   }
 }
 
+
+
+// ── SENSOR DIAGNOSTICS ────────────────────────────────────────────────────
+let _diagEventCount = 0;
+let _diagOpen = false;
+let _diagInterval = null;
+let _lastRawEvent = null;
+
+function openDiag() {
+  _diagOpen = true;
+  document.getElementById('diag-overlay').classList.add('open');
+
+  // Static device info
+  const ua = navigator.userAgent;
+  document.getElementById('d-browser').textContent =
+    /Chrome/.test(ua) ? 'Chrome' : /Safari/.test(ua) ? 'Safari' :
+    /Firefox/.test(ua) ? 'Firefox' : 'Other';
+  document.getElementById('d-platform').textContent = navigator.platform || ua.slice(0,30);
+  const proto = window.location.protocol;
+  const protEl = document.getElementById('d-protocol');
+  protEl.textContent = proto;
+  protEl.className = 'diag-value ' + (proto === 'https:' ? 'good' : 'bad');
+
+  const doeExists = typeof DeviceOrientationEvent !== 'undefined';
+  const doeEl = document.getElementById('d-doe');
+  doeEl.textContent = doeExists ? 'YES' : 'NO';
+  doeEl.className = 'diag-value ' + (doeExists ? 'good' : 'bad');
+
+  const needsPerm = doeExists && typeof DeviceOrientationEvent.requestPermission === 'function';
+  document.getElementById('d-perm').textContent = needsPerm ? 'YES (iOS)' : 'NO (Android/other)';
+
+  document.getElementById('d-lat').textContent = gps.lat || 'not yet';
+  document.getElementById('d-lon').textContent = gps.lon || 'not yet';
+
+  // Start live update loop
+  _diagInterval = setInterval(updateDiag, 200);
+  updateDiag();
+}
+
+function closeDiag() {
+  _diagOpen = false;
+  document.getElementById('diag-overlay').classList.remove('open');
+  if (_diagInterval) { clearInterval(_diagInterval); _diagInterval = null; }
+}
+
+function updateDiag() {
+  document.getElementById('d-daz').textContent = deviceAz !== null ? deviceAz.toFixed(1) + '°' : 'NULL';
+  document.getElementById('d-daz').className = 'diag-value ' + (deviceAz !== null ? 'good' : 'bad');
+
+  document.getElementById('d-del').textContent = deviceEl !== null ? deviceEl.toFixed(1) + '°' : 'NULL';
+  document.getElementById('d-count').textContent = _diagEventCount;
+  document.getElementById('d-firing').textContent = _diagEventCount > 0 ? 'YES (' + _diagEventCount + ')' : 'NO';
+  document.getElementById('d-firing').className = 'diag-value ' + (_diagEventCount > 0 ? 'good' : 'bad');
+
+  if (_lastRawEvent) {
+    const e = _lastRawEvent;
+    document.getElementById('d-alpha').textContent = e.alpha !== null ? e.alpha.toFixed(2) : 'null';
+    document.getElementById('d-beta').textContent  = e.beta  !== null ? e.beta.toFixed(2)  : 'null';
+    document.getElementById('d-gamma').textContent = e.gamma !== null ? e.gamma.toFixed(2) : 'null';
+    document.getElementById('d-abs').textContent   = String(e.absolute);
+    document.getElementById('d-wch').textContent   = e.webkitCompassHeading !== undefined
+      ? e.webkitCompassHeading.toFixed(2) : 'N/A';
+    document.getElementById('d-wca').textContent   = e.webkitCompassAccuracy !== undefined
+      ? e.webkitCompassAccuracy : 'N/A';
+  }
+}
+
+function diagRequestPermission() {
+  document.getElementById('d-permstate').textContent = 'Requesting...';
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => {
+      const el = document.getElementById('d-permstate');
+      el.textContent = state.toUpperCase();
+      el.className = 'diag-value ' + (state === 'granted' ? 'good' : 'bad');
+      if (state === 'granted') {
+        window.addEventListener('deviceorientation', _diagHandler, true);
+        window.addEventListener('deviceorientationabsolute', _diagHandler, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+        _compassListening = true;
+      }
+    }).catch(err => {
+      document.getElementById('d-permstate').textContent = 'ERROR: ' + err.message;
+      document.getElementById('d-permstate').className = 'diag-value bad';
+    });
+  } else {
+    document.getElementById('d-permstate').textContent = 'NOT REQUIRED';
+    document.getElementById('d-permstate').className = 'diag-value warn';
+    // Just attach listeners
+    window.addEventListener('deviceorientation', _diagHandler, true);
+    window.addEventListener('deviceorientationabsolute', _diagHandler, true);
+  }
+}
+
+function diagTestEvents() {
+  const prev = _diagEventCount;
+  document.getElementById('d-firing').textContent = 'TESTING...';
+  document.getElementById('d-firing').className = 'diag-value warn';
+  window.addEventListener('deviceorientation', _diagHandler, true);
+  window.addEventListener('deviceorientationabsolute', _diagHandler, true);
+  setTimeout(() => {
+    const newCount = _diagEventCount - prev;
+    const el = document.getElementById('d-firing');
+    if (newCount > 0) {
+      el.textContent = 'YES — ' + newCount + ' events in 5s';
+      el.className = 'diag-value good';
+    } else {
+      el.textContent = 'NO EVENTS — check permissions';
+      el.className = 'diag-value bad';
+    }
+  }, 5000);
+}
+
+function _diagHandler(e) {
+  _diagEventCount++;
+  _lastRawEvent = e;
+  // Also feed to main handler
+  handleOrientation(e);
+}
+
+// Hook into handleOrientation to count events
+const _origHandleOrientation = handleOrientation;
+window.handleOrientation = function(e) {
+  _diagEventCount++;
+  _lastRawEvent = e;
+  _origHandleOrientation(e);
+};
+
 </script>
 
 <style>
@@ -2574,6 +2703,88 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 /* ── COMPASS BAR ─────────────────────────────────────── */
 #compass-bar { z-index: 10; }
 
+
+/* ── DIAGNOSTICS MODAL ───────────────────────────────── */
+.diag-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.85);
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.diag-overlay.open { display: flex; }
+.diag-box {
+  background: #0a1a10;
+  border: 1px solid #00dcb4;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.diag-title {
+  color: #00dcb4;
+  font-size: 13px;
+  letter-spacing: .2em;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(0,220,180,.3);
+  padding-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.diag-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(0,220,180,.08);
+  font-size: 12px;
+}
+.diag-label { color: rgba(0,220,180,.6); }
+.diag-value { color: #fff; font-size: 13px; }
+.diag-value.good { color: #39ff6a; }
+.diag-value.bad  { color: #ff6b35; }
+.diag-value.warn { color: #ffb060; }
+.diag-section {
+  color: #00dcb4;
+  font-size: 10px;
+  letter-spacing: .2em;
+  margin: 14px 0 6px;
+  opacity: .6;
+  text-transform: uppercase;
+}
+.diag-btn {
+  width: 100%;
+  background: #00dcb4;
+  border: none;
+  color: #000;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  padding: 12px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.diag-btn.secondary {
+  background: transparent;
+  border: 1px solid rgba(0,220,180,.4);
+  color: #00dcb4;
+  margin-top: 8px;
+}
+.diag-close {
+  background: none;
+  border: none;
+  color: #00dcb4;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+}
+
 </style>
 </head>
 <body>
@@ -2632,7 +2843,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
             pointer-events:auto;
             cursor:pointer;
             display:flex;gap:14px;align-items:center;
-          " onclick="requestCompassPermission()">
+          " onclick="openDiag()">
             <span id="compass-az">AZ: —°</span>
             <span id="compass-dir">—</span>
             <span id="compass-el">EL: —°</span>
@@ -2765,7 +2976,8 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
         </div>
         <div class="stsec danger">
           <div class="stsec-title">Account</div>
-          <div class="strow"><div><div class="stlbl">Export Evidence Data</div></div><button class="btn-danger" onclick="doExport()">EXPORT</button></div>
+          <div class="strow"><div><div class="stlbl">Sensor Diagnostics</div><div class="stsub">Debug compass and orientation</div></div><button class="btn-danger" style="border-color:var(--accent2);color:var(--accent2)" onclick="openDiag()">DIAGNOSE</button></div>
+        <div class="strow"><div><div class="stlbl">Export Evidence Data</div></div><button class="btn-danger" onclick="doExport()">EXPORT</button></div>
           <div class="strow"><div><div class="stlbl">Sign Out</div></div><button class="btn-danger" onclick="doSignout()">LOGOUT</button></div>
         </div>
       </div>
@@ -2869,6 +3081,49 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
     <div class="apps-footer">
       © Nexior-Gray · <a href="mailto:nexior-gray@hotmail.com">nexior-gray@hotmail.com</a>
     </div>
+  </div>
+</div>
+
+
+<!-- DIAGNOSTICS MODAL -->
+<div class="diag-overlay" id="diag-overlay">
+  <div class="diag-box">
+    <div class="diag-title">
+      <span>SENSOR DIAGNOSTICS</span>
+      <button class="diag-close" onclick="closeDiag()">✕</button>
+    </div>
+
+    <div class="diag-section">DEVICE</div>
+    <div class="diag-row"><span class="diag-label">Browser</span><span class="diag-value" id="d-browser">—</span></div>
+    <div class="diag-row"><span class="diag-label">Platform</span><span class="diag-value" id="d-platform">—</span></div>
+    <div class="diag-row"><span class="diag-label">Protocol</span><span class="diag-value" id="d-protocol">—</span></div>
+
+    <div class="diag-section">ORIENTATION API</div>
+    <div class="diag-row"><span class="diag-label">DeviceOrientationEvent</span><span class="diag-value" id="d-doe">—</span></div>
+    <div class="diag-row"><span class="diag-label">Requires permission</span><span class="diag-value" id="d-perm">—</span></div>
+    <div class="diag-row"><span class="diag-label">Permission state</span><span class="diag-value" id="d-permstate">—</span></div>
+    <div class="diag-row"><span class="diag-label">Events firing</span><span class="diag-value" id="d-firing">—</span></div>
+
+    <div class="diag-section">RAW SENSOR VALUES</div>
+    <div class="diag-row"><span class="diag-label">alpha (Z rotation)</span><span class="diag-value" id="d-alpha">—</span></div>
+    <div class="diag-row"><span class="diag-label">beta (X tilt)</span><span class="diag-value" id="d-beta">—</span></div>
+    <div class="diag-row"><span class="diag-label">gamma (Y tilt)</span><span class="diag-value" id="d-gamma">—</span></div>
+    <div class="diag-row"><span class="diag-label">absolute</span><span class="diag-value" id="d-abs">—</span></div>
+    <div class="diag-row"><span class="diag-label">webkitCompassHeading</span><span class="diag-value" id="d-wch">—</span></div>
+    <div class="diag-row"><span class="diag-label">webkitCompassAccuracy</span><span class="diag-value" id="d-wca">—</span></div>
+
+    <div class="diag-section">COMPUTED</div>
+    <div class="diag-row"><span class="diag-label">deviceAz</span><span class="diag-value" id="d-daz">—</span></div>
+    <div class="diag-row"><span class="diag-label">deviceEl</span><span class="diag-value" id="d-del">—</span></div>
+    <div class="diag-row"><span class="diag-label">Events received</span><span class="diag-value" id="d-count">0</span></div>
+
+    <div class="diag-section">GPS</div>
+    <div class="diag-row"><span class="diag-label">Latitude</span><span class="diag-value" id="d-lat">—</span></div>
+    <div class="diag-row"><span class="diag-label">Longitude</span><span class="diag-value" id="d-lon">—</span></div>
+
+    <button class="diag-btn" onclick="diagRequestPermission()">REQUEST COMPASS PERMISSION</button>
+    <button class="diag-btn secondary" onclick="diagTestEvents()">TEST RAW EVENTS (5s)</button>
+    <button class="diag-btn secondary" onclick="closeDiag()">CLOSE</button>
   </div>
 </div>
 
