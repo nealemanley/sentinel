@@ -861,28 +861,8 @@ async function startCam(){
   document.getElementById('cb-act').classList.add('on');
   document.getElementById('cb-act').innerHTML='<svg viewBox="0 0 22 22" fill="none"><rect x="4" y="3" width="5" height="16" fill="currentColor"/><rect x="13" y="3" width="5" height="16" fill="currentColor"/></svg> DEACTIVATE';
   ['cb-det','recbtn','cb-flight','cb-flip'].forEach(id=>{const e=document.getElementById(id);if(e)e.disabled=false});
-  setStat('CAMERA LIVE · FULL SPECTRUM','on');toast('CAMERA ACTIVE');
-  // iOS 13+ requires user gesture for orientation permission
-  // Request it immediately when camera is activated (that IS the gesture)
-  if (typeof DeviceOrientationEvent !== 'undefined' &&
-      typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission()
-      .then(state => {
-        if (state === 'granted') {
-          window.addEventListener('deviceorientation', handleOrientation, true);
-          window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-          toast('✓ COMPASS ACTIVE');
-        } else {
-          toast('⚠ COMPASS PERMISSION DENIED — using fixed heading');
-        }
-      }).catch(() => {
-        window.addEventListener('deviceorientation', handleOrientation, true);
-      });
-  } else {
-    // Android / non-iOS
-    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-    window.addEventListener('deviceorientation', handleOrientation, true);
-  }
+  setStat('CAMERA LIVE · FULL SPECTRUM','on');toast('CAMERA ACTIVE — tap compass bar to enable direction tracking');
+  requestCompassPermission();
   fetchLiveTLEs();
   startCompassLoop();
   sessionLog=[];bufferLog=[];bufSecs=0;uapEvents=[];
@@ -1021,10 +1001,21 @@ function handleOrientation(e) {
   // Pointing at sky: phone tilted back, beta goes toward 0 from 90
   if (e.beta !== null && e.beta !== undefined) {
     const b = e.beta;
-    // When phone is upright portrait (beta=90) camera faces horizon = El 0
-    // When tilted back 45° (beta=45) camera faces ~45° elevation
-    // When flat face up (beta=0) camera faces zenith = El 90
-    deviceEl = Math.max(0, Math.min(90, 90 - b));
+    // beta: 90=upright portrait (horizon), 0=tilted back 90° (zenith)
+    // -90 or 180 = face down
+    // Store raw beta for face-down detection
+    window._rawBeta = b;
+    // El = how high the camera is pointing
+    // Portrait upright (beta=90) → horizon = 0°
+    // Tilted back 45° (beta=45) → 45° elevation
+    // Flat on back (beta=0) → zenith = 90°
+    // Face down (beta=-90 or beta=180) → below horizon
+    if (b >= 0) {
+      deviceEl = Math.max(0, Math.min(90, 90 - b));
+    } else {
+      // Negative beta = tilting face down
+      deviceEl = Math.max(-90, b); // negative = below horizon
+    }
   }
 
   if (e.gamma !== null && e.gamma !== undefined) deviceRoll = e.gamma;
@@ -1231,9 +1222,41 @@ function runRealSkyDetection() {
   const now = new Date();
   const jd  = now / 86400000 + 2440587.5;
 
-  // Camera pointing — use device orientation if available, else default to sky
-  const camAz = (deviceAz !== null) ? deviceAz : 180;
-  const camEl = (deviceAz !== null) ? deviceEl : 45;
+  // Camera pointing — REQUIRE real orientation data
+  // If no compass: show nothing, prompt user to enable
+  const hasOrientation = (deviceAz !== null);
+  const camAz = hasOrientation ? deviceAz : 0;
+  const camEl = hasOrientation ? deviceEl : 0;
+
+  // Detect phone face-down or face-up (pointing at ground/ceiling)
+  // beta near -90 = face down, beta near 90 = face up (flat on back)
+  // beta near 0 = portrait upright = pointing at horizon
+  // We want beta roughly 0-70 for sky viewing (tilted back)
+  const betaAbs = Math.abs(deviceEl - 90); // deviceEl = 90-|beta|
+  const rawBeta = window._rawBeta !== undefined ? window._rawBeta : 90;
+  // face down = beta < -45 or beta > 150 (upside down)
+  const phoneFaceDown = hasOrientation && (rawBeta < -45 || rawBeta > 150);
+  // flat on back = beta close to 0 (camera pointing straight up is fine for sky)
+  // flat face-down on table = beta near -90
+  const phoneFlat = hasOrientation && (rawBeta > 80 && rawBeta < 100); // camera at horizon, flat
+
+  // If no orientation OR pointing wrong way — show nothing
+  if (!hasOrientation || phoneFaceDown || phoneFlat) {
+    layer.innerHTML = '';
+    plist.innerHTML = '';
+    document.getElementById('dc-known').textContent = '0';
+    document.getElementById('dc-acft').textContent  = '0';
+    document.getElementById('dc-uap').textContent   = '0';
+    const hudBr = document.getElementById('hud-br');
+    if (!hasOrientation) {
+      if (hudBr) hudBr.innerHTML = 'NO COMPASS<br>TAP AZ BAR ABOVE<br>TO ENABLE';
+    } else if (phoneFlat) {
+      if (hudBr) hudBr.innerHTML = 'PHONE FLAT — TILT UP<br>TO SCAN THE SKY<br>EL: ' + deviceEl.toFixed(0) + '°';
+    } else {
+      if (hudBr) hudBr.innerHTML = 'POINTING AT GROUND<br>TURN CAMERA<br>TOWARD SKY';
+    }
+    return; // EXIT — don't show any objects
+  }
 
   // Update HUD
     // hud-tr is now updated by updateCompassBar() loop — skip here
@@ -1364,7 +1387,9 @@ function runRealSkyDetection() {
   if (deviceAz === null) {
     const hudBr = document.getElementById('hud-br');
     if (hudBr) hudBr.innerHTML =
-      'COMPASS: CALIBRATING<br>ROTATE DEVICE IN FIGURE-8<br>TO CALIBRATE';
+      'NO COMPASS SIGNAL<br>' +
+      'TAP THE AZ BAR ABOVE<br>' +
+      'TO ENABLE COMPASS';
   }
 
   // ── RENDER BOXES (same as before) ─────────────────────────────────────
@@ -1902,6 +1927,61 @@ function startCompassLoop() {
 }
 function stopCompassLoop() {
   if (_compassLoopId) { clearInterval(_compassLoopId); _compassLoopId = null; }
+}
+
+
+// ── COMPASS PERMISSION & SETUP ────────────────────────────────────────────
+let _compassListening = false;
+
+function requestCompassPermission() {
+  if (_compassListening) {
+    toast('COMPASS ALREADY ACTIVE');
+    return;
+  }
+
+  function attachListeners() {
+    // Remove first to avoid duplicates
+    window.removeEventListener('deviceorientation', handleOrientation, true);
+    window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+    // Attach both — absolute fires on Android with true north
+    // deviceorientation fires on everything
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    _compassListening = true;
+
+    // Test if we actually get events within 2 seconds
+    setTimeout(() => {
+      if (deviceAz === null) {
+        toast('⚠ NO COMPASS DATA — Check browser permissions in Settings');
+        document.getElementById('compass-status') &&
+          (document.getElementById('compass-status').textContent = 'CHECK SETTINGS');
+      }
+    }, 2000);
+  }
+
+  // iOS 13+ needs explicit permission request from user gesture
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(state => {
+        if (state === 'granted') {
+          attachListeners();
+          toast('✓ COMPASS PERMISSION GRANTED');
+        } else {
+          toast('⚠ COMPASS DENIED — Go to Settings > Safari > Motion & Orientation');
+          document.getElementById('compass-status') &&
+            (document.getElementById('compass-status').textContent = 'PERMISSION DENIED');
+        }
+      })
+      .catch(err => {
+        // Still try attaching — sometimes works anyway
+        attachListeners();
+        console.warn('Orientation permission error:', err);
+      });
+  } else {
+    // Android, desktop, non-iOS — just attach listeners directly
+    attachListeners();
+  }
 }
 
 </script>
@@ -2541,21 +2621,22 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
           <div id="compass-bar" style="
             position:absolute;
             top:36px;left:50%;transform:translateX(-50%);
-            background:rgba(0,0,0,.55);
+            background:rgba(0,0,0,.65);
             border:1px solid rgba(0,220,180,.4);
-            padding:5px 16px;
+            padding:6px 16px;
             font-family:'Share Tech Mono',monospace;
             font-size:13px;
             color:#00dcb4;
-            letter-spacing:.15em;
+            letter-spacing:.12em;
             white-space:nowrap;
-            pointer-events:none;
-            display:flex;gap:16px;align-items:center;
-          ">
+            pointer-events:auto;
+            cursor:pointer;
+            display:flex;gap:14px;align-items:center;
+          " onclick="requestCompassPermission()">
             <span id="compass-az">AZ: —°</span>
             <span id="compass-dir">—</span>
             <span id="compass-el">EL: —°</span>
-            <span id="compass-status" style="font-size:10px;opacity:.7">NO SIGNAL</span>
+            <span id="compass-status" style="font-size:10px;opacity:.7">TAP FOR COMPASS</span>
           </div>
           <div class="hud-tl" id="hud-tl">LAT: —<br>LON: —<br>ALT: —</div>
           <div class="hud-tr" id="hud-tr">UTC: —<br>AZ: —°<br>EL: —°</div>
