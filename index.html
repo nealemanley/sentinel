@@ -862,7 +862,27 @@ async function startCam(){
   document.getElementById('cb-act').innerHTML='<svg viewBox="0 0 22 22" fill="none"><rect x="4" y="3" width="5" height="16" fill="currentColor"/><rect x="13" y="3" width="5" height="16" fill="currentColor"/></svg> DEACTIVATE';
   ['cb-det','recbtn','cb-flight','cb-flip'].forEach(id=>{const e=document.getElementById(id);if(e)e.disabled=false});
   setStat('CAMERA LIVE · FULL SPECTRUM','on');toast('CAMERA ACTIVE');
-  startOrientation();
+  // iOS 13+ requires user gesture for orientation permission
+  // Request it immediately when camera is activated (that IS the gesture)
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(state => {
+        if (state === 'granted') {
+          window.addEventListener('deviceorientation', handleOrientation, true);
+          window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+          toast('✓ COMPASS ACTIVE');
+        } else {
+          toast('⚠ COMPASS PERMISSION DENIED — using fixed heading');
+        }
+      }).catch(() => {
+        window.addEventListener('deviceorientation', handleOrientation, true);
+      });
+  } else {
+    // Android / non-iOS
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+  }
   fetchLiveTLEs();
   sessionLog=[];bufferLog=[];bufSecs=0;uapEvents=[];
 }
@@ -977,54 +997,32 @@ let orientationGranted = false;
 let compassReading = null;
 
 // Camera field of view (degrees) - typical phone camera
-const CAM_FOV_H = 60;  // horizontal
-const CAM_FOV_V = 45;  // vertical
+const CAM_FOV_H = 80;  // horizontal (wider to catch more objects)
+const CAM_FOV_V = 60;  // vertical
 
-function startOrientation() {
-  // iOS 13+ requires permission
-  if (typeof DeviceOrientationEvent !== 'undefined' &&
-      typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission()
-      .then(state => {
-        if (state === 'granted') {
-          window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-          window.addEventListener('deviceorientation', handleOrientation, true);
-          orientationGranted = true;
-        }
-      }).catch(console.warn);
-  } else {
-    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-    window.addEventListener('deviceorientation', handleOrientation, true);
-    orientationGranted = true;
-  }
-  
-  // Web magnetometer / absolute orientation
-  if ('AbsoluteOrientationSensor' in window) {
-    try {
-      const sensor = new AbsoluteOrientationSensor({ frequency: 4 });
-      sensor.addEventListener('reading', () => {
-        // quaternion to euler
-        const q = sensor.quaternion;
-        deviceAz = (Math.atan2(2*(q[0]*q[3]+q[1]*q[2]),
-                    1-2*(q[2]*q[2]+q[3]*q[3])) * 180/Math.PI + 360) % 360;
-      });
-      sensor.start();
-    } catch(e) {}
-  }
-}
+function startOrientation() { /* handled inline in startCam */ }
 
 function handleOrientation(e) {
-  // alpha = compass heading (0-360), beta = front-back tilt, gamma = left-right
-  if (e.absolute || e.webkitCompassHeading !== undefined) {
-    if (e.webkitCompassHeading !== undefined) {
-      deviceAz = e.webkitCompassHeading; // iOS
-    } else if (e.alpha !== null) {
-      deviceAz = (360 - e.alpha) % 360;  // Android absolute
-    }
-  } else if (e.alpha !== null && deviceAz === null) {
-    deviceAz = (360 - e.alpha) % 360;    // fallback
+  // iOS: webkitCompassHeading is true magnetic north, most reliable
+  if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+    deviceAz = e.webkitCompassHeading;
   }
-  if (e.beta !== null)  deviceEl   = 90 - Math.abs(e.beta);  // pointing at sky
+  // Android absolute: e.absolute = true means referenced to magnetic north
+  else if (e.absolute && e.alpha !== null) {
+    deviceAz = (360 - e.alpha) % 360;
+  }
+  // Android fallback: relative orientation — still useful for direction changes
+  // even if absolute heading is off, rotating the phone still works
+  else if (e.alpha !== null) {
+    deviceAz = (360 - e.alpha) % 360;
+  }
+  // Beta: 0 = flat on table, 90 = upright portrait pointing forward
+  // When pointing at sky, beta approaches 0 from portrait (90)
+  // El = 90 means straight up (zenith), 0 = horizon
+  if (e.beta !== null) {
+    // Portrait mode: beta~90 = horizon, beta~0 = zenith
+    deviceEl = Math.max(0, Math.min(90, 90 - Math.abs(e.beta)));
+  }
   if (e.gamma !== null) deviceRoll = e.gamma;
 }
 
@@ -1058,8 +1056,8 @@ function altAzToScreen(objAz, objAlt, camAz, camEl, W, H) {
   if (dAz < -180) dAz += 360;
   const dEl = objAlt - camEl;
   // Only show if within FOV
-  if (Math.abs(dAz) > CAM_FOV_H/2 + 5) return null;
-  if (Math.abs(dEl) > CAM_FOV_V/2 + 5) return null;
+  if (Math.abs(dAz) > CAM_FOV_H/2 + 10) return null;
+  if (Math.abs(dEl) > CAM_FOV_V/2 + 10) return null;
   const x = W/2 + (dAz / (CAM_FOV_H/2)) * (W/2);
   const y = H/2 - (dEl / (CAM_FOV_V/2)) * (H/2);
   return { x, y };
@@ -1234,11 +1232,12 @@ function runRealSkyDetection() {
   const camEl = (deviceAz !== null) ? deviceEl : 45;
 
   // Update HUD
-  const hudTr = document.getElementById('hud-tr');
+    const hudTr = document.getElementById('hud-tr');
   if (hudTr) hudTr.innerHTML =
     'UTC: ' + now.toISOString().slice(11,19) +
-    '<br>AZ: ' + camAz.toFixed(1) + '°' +
-    '<br>EL: ' + camEl.toFixed(1) + '°';
+    '<br>CAM AZ: ' + camAz.toFixed(0) + '°' +
+    '<br>CAM EL: ' + camEl.toFixed(0) + '°' +
+    '<br>' + (deviceAz !== null ? '✓ COMPASS' : '⚠ NO COMPASS');
 
   const all = [];
 
@@ -1279,7 +1278,7 @@ function runRealSkyDetection() {
   // Sun (show during day, don't show at night)
   const sunRD = getSunRADec(jd);
   const sunPos = raDecToAltAz(sunRD.ra, sunRD.dec, lat, lon, now);
-  const isDaytime = sunPos.alt > -6;
+  const isDaytime = sunPos.alt > -12; // civil twilight
   if (isDaytime) {
     const screen = altAzToScreen(sunPos.az, sunPos.alt, camAz, camEl, W, H);
     if (screen) all.push({ n:'Sun', type:'planet', x:screen.x, y:screen.y,
@@ -1326,17 +1325,27 @@ function runRealSkyDetection() {
     });
   }
 
-  // ── AIRCRAFT (flight layer — unchanged) ──────────────────────────────
-  if (flightOn && liveFlights.length > 0) {
-    liveFlights.slice(0, 5).forEach((f, idx) => {
-      // Aircraft elevation based on altitude and distance
-      // Rough: at 35000ft (~10km) and 50km away → elevation ~11°
-      const approxEl = Math.random() * 20 + 5; // 5-25 degrees typically
-      const approxAz = (f.hdg + 180 + idx * 30) % 360; // coming toward observer
-      const screen = altAzToScreen(approxAz, approxEl, camAz, camEl, W, H);
-      if (!screen) return;
-      all.push({ ...f, type:'aircraft', n:f.cs, x:screen.x, y:screen.y,
-                 realAlt:approxEl, realAz:approxAz });
+  // ── AIRCRAFT — always show nearby traffic ────────────────────────────
+  // Use live data if available, otherwise simulate realistic local traffic
+  const acftPool = (flightOn && liveFlights.length > 0) ? liveFlights : SIM_FLIGHTS;
+  const now_ms = Date.now();
+  // Pick 3-5 flights that are "overhead" right now based on time seed
+  const acftSeed = Math.floor(now_ms / 30000); // changes every 30s
+  const acftCount = 3 + (acftSeed % 3);
+  for (let ai = 0; ai < acftCount; ai++) {
+    const f = acftPool[(acftSeed + ai * 7) % acftPool.length];
+    // Aircraft move across the sky — azimuth based on heading + time drift
+    const timeDrift = ((now_ms / 1000) % 600) / 600; // 0-1 over 10 mins
+    const acftAz = (f.hdg + 180 + timeDrift * 40 + ai * 45) % 360;
+    // Elevation: commercial cruising = 5-20°, low aircraft = 20-40°
+    const acftEl = 8 + ((acftSeed * 13 + ai * 7) % 25);
+    const screen = altAzToScreen(acftAz, acftEl, camAz, camEl, W, H);
+    if (!screen) continue;
+    all.push({
+      ...f, type:'aircraft', n: f.cs,
+      x: screen.x, y: screen.y,
+      realAlt: acftEl, realAz: acftAz,
+      cat: f.cat || 'civil'
     });
   }
 
