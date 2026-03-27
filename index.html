@@ -884,9 +884,11 @@ async function startCam(){
     window.addEventListener('deviceorientation', handleOrientation, true);
   }
   fetchLiveTLEs();
+  startCompassLoop();
   sessionLog=[];bufferLog=[];bufSecs=0;uapEvents=[];
 }
 function stopCam(){
+  stopCompassLoop();
   if(streamRef){streamRef.getTracks().forEach(t=>t.stop());streamRef=null;}
   camActive=false;stopDet();stopRec();stopFlights();
   document.getElementById('vid').srcObject=null;
@@ -1003,27 +1005,29 @@ const CAM_FOV_V = 60;  // vertical
 function startOrientation() { /* handled inline in startCam */ }
 
 function handleOrientation(e) {
-  // iOS: webkitCompassHeading is true magnetic north, most reliable
+  // iOS: webkitCompassHeading — degrees clockwise from true north
   if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
     deviceAz = e.webkitCompassHeading;
   }
-  // Android absolute: e.absolute = true means referenced to magnetic north
-  else if (e.absolute && e.alpha !== null) {
-    deviceAz = (360 - e.alpha) % 360;
+  // All other platforms: alpha is compass heading
+  // For absolute events it's true north, for relative it's still useful
+  else if (e.alpha !== null && e.alpha !== undefined) {
+    // alpha: 0=North on absolute, rotates clockwise
+    // Convert: phone facing North = alpha 0, facing East = alpha 90 etc
+    deviceAz = ((360 - e.alpha) % 360 + 360) % 360;
   }
-  // Android fallback: relative orientation — still useful for direction changes
-  // even if absolute heading is off, rotating the phone still works
-  else if (e.alpha !== null) {
-    deviceAz = (360 - e.alpha) % 360;
+
+  // Beta = front/back tilt. Portrait upright = 90°, flat face-up = 0°
+  // Pointing at sky: phone tilted back, beta goes toward 0 from 90
+  if (e.beta !== null && e.beta !== undefined) {
+    const b = e.beta;
+    // When phone is upright portrait (beta=90) camera faces horizon = El 0
+    // When tilted back 45° (beta=45) camera faces ~45° elevation
+    // When flat face up (beta=0) camera faces zenith = El 90
+    deviceEl = Math.max(0, Math.min(90, 90 - b));
   }
-  // Beta: 0 = flat on table, 90 = upright portrait pointing forward
-  // When pointing at sky, beta approaches 0 from portrait (90)
-  // El = 90 means straight up (zenith), 0 = horizon
-  if (e.beta !== null) {
-    // Portrait mode: beta~90 = horizon, beta~0 = zenith
-    deviceEl = Math.max(0, Math.min(90, 90 - Math.abs(e.beta)));
-  }
-  if (e.gamma !== null) deviceRoll = e.gamma;
+
+  if (e.gamma !== null && e.gamma !== undefined) deviceRoll = e.gamma;
 }
 
 // ── COORDINATE TRANSFORMS ────────────────────────────────────────────────
@@ -1232,12 +1236,7 @@ function runRealSkyDetection() {
   const camEl = (deviceAz !== null) ? deviceEl : 45;
 
   // Update HUD
-    const hudTr = document.getElementById('hud-tr');
-  if (hudTr) hudTr.innerHTML =
-    'UTC: ' + now.toISOString().slice(11,19) +
-    '<br>CAM AZ: ' + camAz.toFixed(0) + '°' +
-    '<br>CAM EL: ' + camEl.toFixed(0) + '°' +
-    '<br>' + (deviceAz !== null ? '✓ COMPASS' : '⚠ NO COMPASS');
+    // hud-tr is now updated by updateCompassBar() loop — skip here
 
   const all = [];
 
@@ -1853,6 +1852,58 @@ function closeApps(e) {
   }
 }
 
+
+
+// ── LIVE COMPASS UPDATE — runs every 200ms independently ────────────────
+function updateCompassBar() {
+  if (!document.getElementById('compass-bar')) return;
+
+  const azEl  = document.getElementById('compass-az');
+  const dirEl = document.getElementById('compass-dir');
+  const elEl  = document.getElementById('compass-el');
+  const stEl  = document.getElementById('compass-status');
+
+  const hudTr = document.getElementById('hud-tr');
+
+  if (deviceAz !== null) {
+    const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE',
+                  'S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    const dir = dirs[Math.round(deviceAz / 22.5) % 16];
+
+    azEl.textContent  = 'AZ: ' + deviceAz.toFixed(0) + '°';
+    dirEl.textContent = dir;
+    elEl.textContent  = 'EL: ' + deviceEl.toFixed(0) + '°';
+    stEl.textContent  = '✓';
+    stEl.style.color  = '#39ff6a';
+
+    // Also update hud-tr with live values
+    if (hudTr) hudTr.innerHTML =
+      'UTC: ' + new Date().toISOString().slice(11,19) +
+      '<br>AZ: '  + deviceAz.toFixed(0) + '° ' + dir +
+      '<br>EL: '  + deviceEl.toFixed(0) + '°';
+  } else {
+    azEl.textContent  = 'AZ: —°';
+    dirEl.textContent = '—';
+    elEl.textContent  = 'EL: —°';
+    stEl.textContent  = 'NO COMPASS';
+    stEl.style.color  = '#ff6b35';
+
+    if (hudTr) hudTr.innerHTML =
+      'UTC: ' + new Date().toISOString().slice(11,19) +
+      '<br>AZ: —<br>EL: —';
+  }
+}
+
+// Start the compass display loop when camera is active
+let _compassLoopId = null;
+function startCompassLoop() {
+  if (_compassLoopId) clearInterval(_compassLoopId);
+  _compassLoopId = setInterval(updateCompassBar, 150);
+}
+function stopCompassLoop() {
+  if (_compassLoopId) { clearInterval(_compassLoopId); _compassLoopId = null; }
+}
+
 </script>
 
 <style>
@@ -2439,6 +2490,10 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   text-decoration: none;
 }
 
+
+/* ── COMPASS BAR ─────────────────────────────────────── */
+#compass-bar { z-index: 10; }
+
 </style>
 </head>
 <body>
@@ -2483,6 +2538,25 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
           <div class="scanbar"></div>
           <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
           <div class="hud-top" id="hud-top">SENTINEL v3 · FULL SPECTRUM</div>
+          <div id="compass-bar" style="
+            position:absolute;
+            top:36px;left:50%;transform:translateX(-50%);
+            background:rgba(0,0,0,.55);
+            border:1px solid rgba(0,220,180,.4);
+            padding:5px 16px;
+            font-family:'Share Tech Mono',monospace;
+            font-size:13px;
+            color:#00dcb4;
+            letter-spacing:.15em;
+            white-space:nowrap;
+            pointer-events:none;
+            display:flex;gap:16px;align-items:center;
+          ">
+            <span id="compass-az">AZ: —°</span>
+            <span id="compass-dir">—</span>
+            <span id="compass-el">EL: —°</span>
+            <span id="compass-status" style="font-size:10px;opacity:.7">NO SIGNAL</span>
+          </div>
           <div class="hud-tl" id="hud-tl">LAT: —<br>LON: —<br>ALT: —</div>
           <div class="hud-tr" id="hud-tr">UTC: —<br>AZ: —°<br>EL: —°</div>
           <div class="hud-br" id="hud-br">—</div>
